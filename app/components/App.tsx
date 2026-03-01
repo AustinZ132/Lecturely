@@ -228,8 +228,8 @@ const App: () => JSX.Element = () => {
         body: JSON.stringify({ text: textToTranslate })
       });
    
-      const reader = res.body?.getReader();
-      if (!reader) return; 
+      if (!res.body) return;
+      const reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
     
       let accumulated = "";
@@ -280,8 +280,8 @@ const App: () => JSX.Element = () => {
       });
 
      
-      const reader = res.body?.getReader();
-      if (!reader) return; 
+    if (!res.body) return;
+      const reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
    
       let currentChunkText = "";
