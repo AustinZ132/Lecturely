@@ -107,14 +107,16 @@ const setupMicrophone = async () => {
   }, [microphone]);
 
   const startMicrophone = useCallback(() => {
-    setMicrophoneState(MicrophoneState.Opening);
+   setMicrophoneState(MicrophoneState.Opening);
 
-if (microphone.state === "paused") {
-      microphone.resume();
-    } else if (microphone.state === "inactive") {
+    // 注意这里加了感叹号 !
+    if (microphone!.state === "paused") {
+      microphone!.resume();
+    } else if (microphone!.state === "inactive") {
+      microphone!.start(250);
+    }
       // 只有在麦克风彻底闲置 (inactive) 的时候，才允许调用 start
       microphone?.start(250);
-    }
 
     setMicrophoneState(MicrophoneState.Open);
   }, [microphone]);
