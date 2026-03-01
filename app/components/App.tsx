@@ -227,8 +227,11 @@ const App: () => JSX.Element = () => {
         },
         body: JSON.stringify({ text: textToTranslate })
       });
+   
       const reader = res.body?.getReader();
+      if (!reader) return; 
       const decoder = new TextDecoder("utf-8");
+    
       let accumulated = "";
       let buffer = "";
 
@@ -276,8 +279,11 @@ const App: () => JSX.Element = () => {
         signal: signal
       });
 
+     
       const reader = res.body?.getReader();
+      if (!reader) return; 
       const decoder = new TextDecoder("utf-8");
+   
       let currentChunkText = "";
       let buffer = "";
 
