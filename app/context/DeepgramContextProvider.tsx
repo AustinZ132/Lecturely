@@ -50,17 +50,15 @@ const DeepgramContextProvider: FunctionComponent<
   /**
    * Connects to the Deepgram speech recognition service and sets up a live transcription session.
    */
-const connectToDeepgram = async (options: LiveSchema, endpoint?: string) => {
+  const connectToDeepgram = async (options: LiveSchema, endpoint?: string) => {
     const customKey = typeof window !== "undefined" ? localStorage.getItem("LecSync_DG_Key") : null;
     let deepgram;
 
     if (customKey && customKey.trim() !== "") {
-    
       const apiKey = customKey.trim();
       console.log("🟢 [Public Edition] 正在使用用户自定义的 Deepgram Key");
       deepgram = createClient(apiKey); 
     } else {
-      
       const tempToken = await getToken();
       console.log("🟡 [Default] 正在使用服务器兜底的 Deepgram Token");
       deepgram = createClient({ accessToken: tempToken });
@@ -82,6 +80,31 @@ const connectToDeepgram = async (options: LiveSchema, endpoint?: string) => {
 
     setConnection(conn);
   };
+
+  const disconnectFromDeepgram = async () => {
+    if (connection) {
+      connection.finish();
+      setConnection(null);
+    }
+  };
+
+  return (
+    <DeepgramContext.Provider
+      value={{
+        connection,
+        connectToDeepgram,
+        disconnectFromDeepgram,
+        connectionState,
+      }}
+    >
+      {children}
+    </DeepgramContext.Provider>
+  );
+};
+
+function useDeepgram(): DeepgramContextType {
+  const context = useContext(DeepgramContext);
+  if (context === undefined) {
     throw new Error(
       "useDeepgram must be used within a DeepgramContextProvider"
     );
