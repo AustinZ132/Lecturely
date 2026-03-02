@@ -37,8 +37,8 @@ const Home = () => {
       </main>
 
       {/* --- 底部：你的专属署名与致敬 --- */}
-      <footer className="w-full shrink-0 py-4 border-t border-gray-800/80 bg-gray-900/40 text-center z-20">
-        <p className="text-[11px] md:text-xs text-gray-500 font-medium tracking-wide">
+     <footer className="w-full py-6 border-t border-gray-800/80 bg-gray-900/40 text-center z-20 mt-auto">
+        <p className="text-[9px] text-gray-500 font-medium tracking-wide">
           Designed & Built by Gemini & Austin @ WKU · Powered by Deepgram & DeepSeek
         </p>
       </footer>
