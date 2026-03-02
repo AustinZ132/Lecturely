@@ -71,13 +71,43 @@ const App: () => JSX.Element = () => {
     return "";
   });
 
+  // 📶 新增：网络延迟测速状态
+  const [pingMs, setPingMs] = useState<number | null>(null);
+  
   useEffect(() => {
     setIsMounted(true);
     const savedSource = localStorage.getItem("LecSync_AudioSource") as 'mic' | 'system';
     if (savedSource) {
       setAudioSource(savedSource);
     }
+
+    // 📶 新增：每隔 5 秒测一次到服务器的真实延迟
+    const checkPing = async () => {
+      try {
+        const start = Date.now();
+        await fetch('/api/ping', { cache: 'no-store' });
+        setPingMs(Date.now() - start);
+      } catch (e) {
+        setPingMs(-1); // 代表断网或请求失败
+      }
+    };
+    
+    checkPing(); // 初始化测一次
+    const pingInterval = setInterval(checkPing, 5000);
+    return () => clearInterval(pingInterval);
   }, []);
+
+  // 📶 新增：根据毫秒数计算信号颜色和提示
+  const getPingStatus = () => {
+    if (pingMs === null) return { color: "text-gray-500", text: "测速中...", bars: "⚪⚪⚪⚪" };
+    if (pingMs === -1) return { color: "text-red-500 font-bold animate-pulse", text: "连接断开", bars: "❌❌❌❌" };
+    if (pingMs < 150) return { color: "text-green-400", text: "极速", bars: "🟢🟢🟢🟢" };
+    if (pingMs < 300) return { color: "text-yellow-400", text: "良好", bars: "🟡🟡🟡⚪" };
+    if (pingMs < 500) return { color: "text-orange-400", text: "拥堵", bars: "🟠🟠⚪⚪" };
+    return { color: "text-red-500", text: "卡顿", bars: "🔴⚪⚪⚪" };
+  };
+
+  const pingStatus = getPingStatus();
 
   // Export transcription history to TXT
   const exportToTXT = () => {
@@ -380,7 +410,6 @@ const App: () => JSX.Element = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connectionState]);
 
-  // 🚀 终极修复：把 isPaused 加入依赖，让“长时间暂停”时强制发送 KeepAlive 心跳保活
   useEffect(() => {
     if (!connection) return;
     
@@ -429,7 +458,7 @@ const App: () => JSX.Element = () => {
       {/* Toolbar: z-[60] 提升到比任何东西都高的绝对顶层 */}
       <div className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800/80 bg-gray-900/40 z-[60] shadow-sm shrink-0 relative">
         
-        <div className="flex space-x-3">
+        <div className="flex items-center space-x-3">
           <button 
             onClick={() => setShowSettings(!showSettings)}
             className={`px-4 py-2 rounded-lg font-medium transition-colors shadow-sm border ${
@@ -479,7 +508,18 @@ const App: () => JSX.Element = () => {
           </div>
         </div>
 
-        <div className="flex space-x-4 relative z-50">
+        <div className="flex items-center space-x-4 relative z-50">
+          {/* 📶 新增：信号状态显示 */}
+          <div 
+            className="flex items-center space-x-2 bg-gray-800/80 px-3 py-1.5 rounded-lg border border-gray-700/50 cursor-help transition-all"
+            title={`当前连接延迟: ${pingMs !== null && pingMs !== -1 ? pingMs + ' ms' : '未知'}`}
+          >
+             <span className="text-[10px] tracking-tighter opacity-80">{pingStatus.bars}</span>
+             <span className={`text-xs font-bold w-12 text-center ${pingStatus.color}`}>
+               {pingMs !== null && pingMs !== -1 ? `${pingMs}ms` : pingStatus.text}
+             </span>
+          </div>
+
           <button 
             onClick={togglePause}
             className={`px-6 py-2 rounded-xl font-bold transition-all shadow-md ${
@@ -505,7 +545,6 @@ const App: () => JSX.Element = () => {
             ⏹ 结束转录
           </button>
         </div>
-        <div className="w-[120px]"></div>
       </div>
 
       {/* Settings Panel: z-[70] 并添加内部显式关闭按钮 */}
