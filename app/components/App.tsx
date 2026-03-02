@@ -317,7 +317,6 @@ const App: () => JSX.Element = () => {
     if (!connection) return;
 
     // 🚀 核心优化 1：数据发送阀门
-    // 当点了暂停 (isPausedRef.current 为 true) 时，直接拦截音频流，不再发送给服务器。完美解决硬件暂停死机的 Bug。
     const onData = (e: BlobEvent) => {
       if (e.data.size > 0 && !isPausedRef.current) {
         connection?.send(e.data);
@@ -409,8 +408,8 @@ const App: () => JSX.Element = () => {
   return (
     <div className="flex flex-col h-full w-full antialiased bg-transparent relative overflow-hidden">
       
-      {/* Toolbar */}
-      <div className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800/80 bg-gray-900/40 z-20 shadow-sm shrink-0">
+      {/* Toolbar: 提升 z-index 到 50，确保不被任何底部元素遮挡 */}
+      <div className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800/80 bg-gray-900/40 z-50 shadow-sm shrink-0 relative">
         
         <div className="flex space-x-3">
           <button 
@@ -434,7 +433,7 @@ const App: () => JSX.Element = () => {
             </button>
 
             {showSourceDropdown && (
-              <div className="absolute top-full left-0 mt-2 w-40 bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden py-1">
+              <div className="absolute top-full left-0 mt-2 w-40 bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-[60] overflow-hidden py-1">
                 <button 
                   onClick={() => {
                     localStorage.setItem("LecSync_AudioSource", 'mic');
@@ -487,9 +486,9 @@ const App: () => JSX.Element = () => {
         <div className="w-[120px]"></div>
       </div>
 
-      {/* Settings Panel */}
+      {/* Settings Panel: 提升 z-index 到 50，保持与顶栏一致的最高防御力 */}
       {showSettings && (
-        <div className="absolute top-20 left-6 z-40 bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 w-80 max-h-[calc(100vh-120px)] overflow-y-auto flex flex-col space-y-4 pb-6">
+        <div className="absolute top-20 left-6 z-50 bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 w-80 max-h-[calc(100vh-120px)] overflow-y-auto flex flex-col space-y-4 pb-6">
           <h3 className="text-white font-bold text-lg border-b border-gray-700 pb-2 shrink-0">外观与核心参数</h3>
 
           <div className="space-y-4 bg-gray-900/50 p-4 rounded-lg border border-gray-700/50 shrink-0">
@@ -566,11 +565,11 @@ const App: () => JSX.Element = () => {
         </div>
       )}
 
-      {/* Main Transcription Display with Scroll Listener */}
+      {/* Main Transcription Display with Scroll Listener: 保持默认层级，绝不逾矩 */}
       <div 
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-col flex-auto overflow-y-auto px-8 pt-8 max-w-4xl mx-auto w-full space-y-4 pb-32 scroll-smooth relative"
+        className="flex-col flex-auto overflow-y-auto px-8 pt-8 max-w-4xl mx-auto w-full space-y-4 pb-32 scroll-smooth"
       >
         {history.map((item, index) => {
           const isLatest = index === history.length - 1;
@@ -587,7 +586,6 @@ const App: () => JSX.Element = () => {
               </div>
 
               <div className={`border-t border-gray-700/50 pt-2 font-medium leading-relaxed ${isLatest ? 'text-gray-100' : 'text-gray-400'}`}>
-                {/* 如果有翻译内容就显示，如果没有就静静等待，不要出现花里胡哨的加载文字 */}
                 {item.translation === "..." ? (
                   <span className="text-gray-600">...</span>
                 ) : (
@@ -601,14 +599,13 @@ const App: () => JSX.Element = () => {
         {(currentText || interimText) && (
           <div 
             style={{ fontSize: `${fontSize}px` }}
-            className="bg-gray-800 border-l-4 border-blue-400 p-5 rounded-xl shadow-lg mt-2 relative overflow-hidden"
+            className="bg-gray-800 border-l-4 border-blue-400 p-5 rounded-xl shadow-lg mt-2 overflow-hidden"
           >
             <div className="mb-3 text-[0.9em] text-gray-400 leading-relaxed font-medium">
               <span>{currentText} </span>
               <span className="text-gray-300 font-semibold">{interimText}</span>
             </div>
             
-            {/* 🚀 核心优化 2：只有当 AI 吐出真正的中文翻译内容时，这个白色的纯粹方块才会渲染出来，告别烦人的占位符 */}
             {liveTranslation && (
               <div className="border-t border-gray-600/50 pt-3 text-[1.25em] font-black text-white tracking-wide drop-shadow-md">
                 {liveTranslation}
@@ -633,7 +630,7 @@ const App: () => JSX.Element = () => {
         </button>
       )}
 
-      {/* Save Modal */}
+      {/* Save Modal: z-50 确保覆盖整个屏幕 */}
       {isSaveModalOpen && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
           <div className="bg-gray-800 border border-gray-700 p-8 rounded-2xl shadow-2xl w-full max-w-md transform transition-all">
@@ -696,7 +693,7 @@ const App: () => JSX.Element = () => {
               <button
                 onClick={() => {
                   setIsSaveModalOpen(false);
-                  if (isPaused) togglePause(); 
+                  if (isPausedRef.current) togglePause(); // 修复：使用 ref 判断暂停状态
                 }}
                 className="px-5 py-2.5 rounded-xl font-medium text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
               >
