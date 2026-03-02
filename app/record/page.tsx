@@ -26,11 +26,11 @@ const Home = () => {
         </main>
 
         {/* --- 底部：你的署名与致敬 (极简不打扰) --- */}
-        <footer className="h-8 shrink-0 bg-gray-900 border-t border-gray-800 flex items-center justify-center z-10">
-          <p className="text-xs text-gray-500 font-mono">
-            Designed & Built by Gemini & Austin · Powered by Deepgram & DeepSeek
-          </p>
-        </footer>
+             <footer className="w-full py-6 border-t border-gray-800/80 bg-gray-900/40 text-center z-20 mt-auto">
+        <p className="text-xs text-gray-500 font-medium tracking-wide">
+          Designed & Built by Gemini & Austin @ WKU · Powered by Deepgram & DeepSeek
+        </p>
+      </footer>
 
       </div>
     </>
