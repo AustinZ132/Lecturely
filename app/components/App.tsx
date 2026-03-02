@@ -316,7 +316,7 @@ const App: () => JSX.Element = () => {
     if (!microphone) return;
     if (!connection) return;
 
-    // 🚀 核心优化 1：数据发送阀门
+    // 数据发送阀门
     const onData = (e: BlobEvent) => {
       if (e.data.size > 0 && !isPausedRef.current) {
         connection?.send(e.data);
@@ -380,17 +380,24 @@ const App: () => JSX.Element = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connectionState]);
 
+  // 🚀 终极修复：把 isPaused 加入依赖，让“长时间暂停”时强制发送 KeepAlive 心跳保活
   useEffect(() => {
     if (!connection) return;
-    if (microphoneState !== MicrophoneState.Open && connectionState === LiveConnectionState.OPEN) {
+    
+    // 如果麦克风未打开，或者处于暂停状态，但服务器连接还在，就必须激活心跳！
+    if ((microphoneState !== MicrophoneState.Open || isPaused) && connectionState === LiveConnectionState.OPEN) {
       connection.keepAlive();
-      keepAliveInterval.current = setInterval(() => { connection.keepAlive(); }, 10000);
+      // 设为 8 秒发送一次保活，防止被 Deepgram 踢掉
+      keepAliveInterval.current = setInterval(() => { 
+        connection.keepAlive(); 
+      }, 8000);
     } else {
       clearInterval(keepAliveInterval.current);
     }
     return () => clearInterval(keepAliveInterval.current);
+    // 务必监听 isPaused，这样一暂停就会启动心跳
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [microphoneState, connectionState]);
+  }, [microphoneState, connectionState, isPaused]);
 
   const handleScroll = () => {
     if (!scrollContainerRef.current) return;
@@ -408,7 +415,7 @@ const App: () => JSX.Element = () => {
   return (
     <div className="flex flex-col h-full w-full antialiased bg-transparent relative overflow-hidden">
       
-      {/* 🚀 防干扰遮罩层：如果设置面板或下拉菜单开启，显示一个隐形遮罩，点击它就关闭面板，从而拦截底部跳动区域的所有点击干扰 */}
+      {/* 🚀 防干扰遮罩层：保留，点击可关闭 */}
       {(showSettings || showSourceDropdown) && (
         <div 
           className="fixed inset-0 z-40 bg-black/10" 
@@ -419,13 +426,17 @@ const App: () => JSX.Element = () => {
         />
       )}
 
-      {/* Toolbar: z-50 保持最高层级 */}
-      <div className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800/80 bg-gray-900/40 z-50 shadow-sm shrink-0 relative">
+      {/* Toolbar: z-[60] 提升到比任何东西都高的绝对顶层 */}
+      <div className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800/80 bg-gray-900/40 z-[60] shadow-sm shrink-0 relative">
         
         <div className="flex space-x-3">
           <button 
             onClick={() => setShowSettings(!showSettings)}
-            className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-600 px-4 py-2 rounded-lg font-medium transition-colors shadow-sm relative z-50"
+            className={`px-4 py-2 rounded-lg font-medium transition-colors shadow-sm border ${
+              showSettings 
+                ? 'bg-gray-700 border-gray-500 text-white' 
+                : 'bg-gray-800 hover:bg-gray-700 border-gray-600 text-gray-300'
+            }`}
           >
             ⚙️ 参数设置
           </button>
@@ -444,7 +455,7 @@ const App: () => JSX.Element = () => {
             </button>
 
             {showSourceDropdown && (
-              <div className="absolute top-full left-0 mt-2 w-40 bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden py-1">
+              <div className="absolute top-full left-0 mt-2 w-40 bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-[70] overflow-hidden py-1">
                 <button 
                   onClick={() => {
                     localStorage.setItem("LecSync_AudioSource", 'mic');
@@ -497,14 +508,19 @@ const App: () => JSX.Element = () => {
         <div className="w-[120px]"></div>
       </div>
 
-      {/* Settings Panel: z-50 */}
+      {/* Settings Panel: z-[70] 并添加内部显式关闭按钮 */}
       {showSettings && (
-        <div className="absolute top-20 left-6 z-50 bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 w-80 max-h-[calc(100vh-120px)] overflow-y-auto flex flex-col space-y-4 pb-6">
-          <h3 className="text-white font-bold text-lg border-b border-gray-700 pb-2 shrink-0 flex justify-between items-center">
-            <span>外观与核心参数</span>
-            {/* 加一个显式的关闭按钮，确保任何情况下都能关掉 */}
-            <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-white text-sm">✖</button>
-          </h3>
+        <div className="absolute top-20 left-6 z-[70] bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 w-80 max-h-[calc(100vh-120px)] overflow-y-auto flex flex-col space-y-4 pb-6">
+          <div className="flex justify-between items-center border-b border-gray-700 pb-2 shrink-0">
+            <h3 className="text-white font-bold text-lg">外观与核心参数</h3>
+            <button 
+              onClick={() => setShowSettings(false)}
+              className="text-gray-400 hover:text-white transition-colors p-1 bg-gray-700 hover:bg-gray-600 rounded-md shadow-sm"
+              title="关闭面板"
+            >
+              ✖
+            </button>
+          </div>
 
           <div className="space-y-4 bg-gray-900/50 p-4 rounded-lg border border-gray-700/50 shrink-0">
             <h4 className="text-sm font-bold text-blue-400 mb-2">🔑 Public Edition (自带秘钥)</h4>
@@ -645,9 +661,9 @@ const App: () => JSX.Element = () => {
         </button>
       )}
 
-      {/* Save Modal: z-50 确保覆盖整个屏幕 */}
+      {/* Save Modal: z-[80] 确保覆盖整个屏幕包括设置面板 */}
       {isSaveModalOpen && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+        <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
           <div className="bg-gray-800 border border-gray-700 p-8 rounded-2xl shadow-2xl w-full max-w-md transform transition-all">
             <h2 className="text-2xl font-bold text-white mb-6">💾 保存课堂档案</h2>
 
