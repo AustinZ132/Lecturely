@@ -75,7 +75,7 @@ export default function Dashboard() {
           href="/record" 
           className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 md:px-6 md:py-2.5 rounded-xl font-bold shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:-translate-y-0.5 transition-all flex items-center gap-2"
         >
-          <span>🚀</span> <span className="hidden md:inline">启动转录引擎</span><span className="md:hidden">新建</span>
+          <span>🚀</span> <span className="hidden md:inline">开始新转录</span><span className="md:hidden">新建</span>
         </Link>
       </header>
 
@@ -107,7 +107,7 @@ export default function Dashboard() {
               <div className="text-center py-24 bg-gray-900/40 rounded-3xl border border-gray-800/80 border-dashed backdrop-blur-sm">
                 <div className="text-6xl mb-4 opacity-50">📂</div>
                 <p className="text-gray-400 mb-2 text-lg">这里空空如也</p>
-                <p className="text-gray-500 text-sm">点击右上角启动引擎，开始你的第一节课！</p>
+                <p className="text-gray-500 text-sm">点击右上角开始新转录，开始你的第一次转录！</p>
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -169,10 +169,11 @@ export default function Dashboard() {
       {/* 统一底部署名 (Footer) */}
       <footer className="w-full py-6 border-t border-gray-800/80 bg-gray-900/40 text-center z-20 mt-auto">
         <p className="text-sm text-gray-500 font-medium tracking-wide">
-          Developed with ❤️ at Wenzhou-Kean University
+          Designed & Built by Gemini & Austin @ WKU · Powered by Deepgram & DeepSeek
         </p>
       </footer>
       
     </div>
   );
 }
+
