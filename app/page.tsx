@@ -55,7 +55,7 @@ export default function Dashboard() {
         <div className="flex items-center space-x-3 md:space-x-4">
           {/* Logo 区域 */}
                    <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2">
-            <LecturelyIcon className="w-6 h-6 md:w-8 md:h-8" />
+            <img src="/icon.png" alt="Logo" className="w-6 h-6 md:w-8 md:h-8 rounded-lg" />
             Lecturely
           </h1>
           
@@ -176,6 +176,7 @@ export default function Dashboard() {
     </div>
   );
 }
+
 
 
 
