@@ -408,13 +408,24 @@ const App: () => JSX.Element = () => {
   return (
     <div className="flex flex-col h-full w-full antialiased bg-transparent relative overflow-hidden">
       
-      {/* Toolbar: 提升 z-index 到 50，确保不被任何底部元素遮挡 */}
+      {/* 🚀 防干扰遮罩层：如果设置面板或下拉菜单开启，显示一个隐形遮罩，点击它就关闭面板，从而拦截底部跳动区域的所有点击干扰 */}
+      {(showSettings || showSourceDropdown) && (
+        <div 
+          className="fixed inset-0 z-40 bg-black/10" 
+          onClick={() => {
+            setShowSettings(false);
+            setShowSourceDropdown(false);
+          }}
+        />
+      )}
+
+      {/* Toolbar: z-50 保持最高层级 */}
       <div className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800/80 bg-gray-900/40 z-50 shadow-sm shrink-0 relative">
         
         <div className="flex space-x-3">
           <button 
             onClick={() => setShowSettings(!showSettings)}
-            className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-600 px-4 py-2 rounded-lg font-medium transition-colors shadow-sm"
+            className="bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-600 px-4 py-2 rounded-lg font-medium transition-colors shadow-sm relative z-50"
           >
             ⚙️ 参数设置
           </button>
@@ -422,7 +433,7 @@ const App: () => JSX.Element = () => {
           <div className="relative">
             <button 
               onClick={() => setShowSourceDropdown(!showSourceDropdown)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors shadow-sm border flex items-center gap-2 ${
+              className={`px-4 py-2 rounded-lg font-medium transition-colors shadow-sm border flex items-center gap-2 relative z-50 ${
                 audioSource === 'system' 
                   ? 'bg-purple-600 hover:bg-purple-500 border-purple-500 text-white' 
                   : 'bg-gray-800 hover:bg-gray-700 border-gray-600 text-gray-300'
@@ -433,7 +444,7 @@ const App: () => JSX.Element = () => {
             </button>
 
             {showSourceDropdown && (
-              <div className="absolute top-full left-0 mt-2 w-40 bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-[60] overflow-hidden py-1">
+              <div className="absolute top-full left-0 mt-2 w-40 bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden py-1">
                 <button 
                   onClick={() => {
                     localStorage.setItem("LecSync_AudioSource", 'mic');
@@ -457,7 +468,7 @@ const App: () => JSX.Element = () => {
           </div>
         </div>
 
-        <div className="flex space-x-4">
+        <div className="flex space-x-4 relative z-50">
           <button 
             onClick={togglePause}
             className={`px-6 py-2 rounded-xl font-bold transition-all shadow-md ${
@@ -486,10 +497,14 @@ const App: () => JSX.Element = () => {
         <div className="w-[120px]"></div>
       </div>
 
-      {/* Settings Panel: 提升 z-index 到 50，保持与顶栏一致的最高防御力 */}
+      {/* Settings Panel: z-50 */}
       {showSettings && (
         <div className="absolute top-20 left-6 z-50 bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 w-80 max-h-[calc(100vh-120px)] overflow-y-auto flex flex-col space-y-4 pb-6">
-          <h3 className="text-white font-bold text-lg border-b border-gray-700 pb-2 shrink-0">外观与核心参数</h3>
+          <h3 className="text-white font-bold text-lg border-b border-gray-700 pb-2 shrink-0 flex justify-between items-center">
+            <span>外观与核心参数</span>
+            {/* 加一个显式的关闭按钮，确保任何情况下都能关掉 */}
+            <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-white text-sm">✖</button>
+          </h3>
 
           <div className="space-y-4 bg-gray-900/50 p-4 rounded-lg border border-gray-700/50 shrink-0">
             <h4 className="text-sm font-bold text-blue-400 mb-2">🔑 Public Edition (自带秘钥)</h4>
@@ -565,7 +580,7 @@ const App: () => JSX.Element = () => {
         </div>
       )}
 
-      {/* Main Transcription Display with Scroll Listener: 保持默认层级，绝不逾矩 */}
+      {/* Main Transcription Display with Scroll Listener: 保持默认层级 */}
       <div 
         ref={scrollContainerRef}
         onScroll={handleScroll}
@@ -693,7 +708,7 @@ const App: () => JSX.Element = () => {
               <button
                 onClick={() => {
                   setIsSaveModalOpen(false);
-                  if (isPausedRef.current) togglePause(); // 修复：使用 ref 判断暂停状态
+                  if (isPausedRef.current) togglePause(); 
                 }}
                 className="px-5 py-2.5 rounded-xl font-medium text-gray-400 hover:text-white hover:bg-gray-700 transition-colors"
               >
