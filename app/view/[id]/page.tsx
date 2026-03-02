@@ -36,7 +36,7 @@ export default function ViewRecord() {
     return (
       <div className="h-screen bg-gray-950 text-white flex flex-col justify-center items-center antialiased">
         <div className="animate-spin text-4xl mb-4">🎙️</div>
-        <p className="text-gray-400 font-medium tracking-widest animate-pulse">正在读取记忆晶体...</p>
+        <p className="text-gray-400 font-medium tracking-widest animate-pulse">正在读取...</p>
       </div>
     );
   }
@@ -126,5 +126,6 @@ export default function ViewRecord() {
     </div>
   );
 }
+
 
 
