@@ -1,5 +1,5 @@
 "use client";
-
+import LecturelyIcon from "../components/icons/LecturelyIcon";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getRecords, deleteRecord, deleteFolder, renameFolder, TranscriptionRecord } from "../lib/storage";
@@ -176,6 +176,7 @@ export default function Dashboard() {
     </div>
   );
 }
+
 
 
 
