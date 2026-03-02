@@ -551,16 +551,19 @@ const App: () => JSX.Element = () => {
                 isLatest ? 'bg-gray-800 border-l-4 border-blue-500' : 'bg-gray-800/60'
               }`}
             >
-              <div className={`mb-2 ${isLatest ? 'text-white' : 'text-gray-400'}`}>
-                {item.original}
-              </div>
-              <div className={`border-t border-gray-700/50 pt-2 font-medium ${isLatest ? 'text-blue-300' : 'text-gray-500'}`}>
-                {item.translation === "..." ? (
-                  <span className="animate-pulse">正在精校翻译...</span>
-                ) : (
-                  item.translation
-                )}
-              </div>
+           {/* 英文：统一调暗 (text-gray-400)，字号缩小到基准的 85% (text-[0.85em]) */}
+<div className="mb-3 text-[0.85em] text-gray-400 leading-relaxed font-medium">
+  {item.original}
+</div>
+
+{/* 中文：高亮白 (text-gray-100)，字号放大到基准的 120% (text-[1.2em])，加粗并增加字间距 */}
+<div className="border-t border-gray-700/50 pt-3 text-[1.2em] font-extrabold text-gray-100 leading-relaxed tracking-wide drop-shadow-sm">
+  {item.translation === "..." ? (
+    <span className="animate-pulse text-gray-500">正在精校翻译...</span>
+  ) : (
+    item.translation
+  )}
+</div>
             </div>
           );
         })}
