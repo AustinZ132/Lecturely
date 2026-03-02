@@ -2,6 +2,7 @@ import { Inter } from "next/font/google";
 import classNames from "classnames";
 import localFont from "next/font/local";
 
+
 import { DeepgramContextProvider } from "./context/DeepgramContextProvider";
 import { MicrophoneContextProvider } from "./context/MicrophoneContextProvider";
 
@@ -23,13 +24,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://aura-tts-demo.deepgram.com"),
-  title: "Deepgram AI Agent",
-  description: `Deepgram's AI Agent Demo shows just how fast Speech-to-Text and Text-to-Speech can be.`,
-  robots: {
-    index: false,
-    follow: false,
-  },
+  title: "Lecturely | AI Powered Speech Transcript & Translate Tool",
+  description: `Powered by Deepgram & DeepSeek.`,
+
 };
 
 export default function RootLayout({
