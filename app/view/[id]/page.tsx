@@ -108,10 +108,14 @@ export default function ViewRecord() {
             
             <div className="mb-3 text-gray-300 leading-relaxed font-medium">
               {item.original}
-            </div>
-            <div className="border-t border-gray-700/50 pt-3 font-medium text-emerald-400/90 leading-relaxed">
-              {item.translation}
-            </div>
+            {/* 英文原文：字号变小 (text-sm md:text-base)，颜色调暗 (text-gray-400) */}
+          <div className="mb-3 text-sm md:text-base text-gray-400 leading-relaxed font-medium">
+            {item.original}
+          </div>
+
+          {/* 中文翻译：字号放大 (text-lg md:text-xl)，颜色变成干净清爽的高亮白 (text-gray-100)，并且加粗 (font-bold) */}
+          <div className="border-t border-gray-700/50 pt-3 text-lg md:text-xl font-bold text-gray-100 leading-relaxed tracking-wide">
+            {item.translation}
           </div>
         ))}
       </main>
@@ -126,6 +130,7 @@ export default function ViewRecord() {
     </div>
   );
 }
+
 
 
 
