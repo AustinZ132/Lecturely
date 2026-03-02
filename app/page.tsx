@@ -54,8 +54,9 @@ export default function Dashboard() {
       <header className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800/80 bg-gray-900/40 backdrop-blur-md z-20 shadow-sm">
         <div className="flex items-center space-x-3 md:space-x-4">
           {/* Logo 区域 */}
-          <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2">
-            <span className="text-blue-500 text-2xl md:text-3xl">🎙️</span> Lecturely
+                   <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2">
+            <LecturelyIcon className="w-6 h-6 md:w-8 md:h-8" />
+            Lecturely
           </h1>
           
           {/* Public Edition 专属高亮徽章 */}
@@ -175,5 +176,6 @@ export default function Dashboard() {
     </div>
   );
 }
+
 
 
