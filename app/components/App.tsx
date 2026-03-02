@@ -33,7 +33,10 @@ const App: () => JSX.Element = () => {
   
   // Abort controller to cancel outdated translation streams when a new paragraph starts
   const paragraphAbortControllerRef = useRef<AbortController | null>(null);
+  
+  // UI 状态控制
   const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [showSourceDropdown, setShowSourceDropdown] = useState<boolean>(false); // 控制麦克风下拉菜单
   
   // --- 智能滚动相关状态与引用 ---
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -178,8 +181,8 @@ const App: () => JSX.Element = () => {
       model: "nova-3",
       interim_results: true,
       smart_format: true,
-      endpointing: 700,  // 默认中间值 700
-      utterance_end_ms: 2000, // 默认中间值 2000
+      endpointing: 700,  
+      utterance_end_ms: 2000, 
       diarize: false, 
       punctuate: true,
       profanity_filter: false,
@@ -266,7 +269,6 @@ const App: () => JSX.Element = () => {
     const signal = paragraphAbortControllerRef.current.signal;
 
     try {
-      // 通过控制请求头部和保活机制，榨干浏览器的并发潜力
       const res = await fetch('/api/translate', {
         method: 'POST',
         headers: { 
@@ -422,20 +424,44 @@ const App: () => JSX.Element = () => {
             ⚙️ 参数设置
           </button>
 
-          <button 
-            onClick={() => {
-              const newSource = audioSource === 'mic' ? 'system' : 'mic';
-              localStorage.setItem("LecSync_AudioSource", newSource);
-              window.location.reload(); 
-            }}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors shadow-sm border border-gray-600 ${
-              audioSource === 'system' 
-                ? 'bg-purple-600 hover:bg-purple-500 text-white' 
-                : 'bg-gray-800 hover:bg-gray-700 text-gray-300'
-            }`}
-          >
-           {!isMounted ? '...' : (audioSource === 'mic' ? '🎙️ 麦克风' : '💻 系统内录')}
-          </button>
+          {/* 下拉菜单式的输入源选择 */}
+          <div className="relative">
+            <button 
+              onClick={() => setShowSourceDropdown(!showSourceDropdown)}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors shadow-sm border flex items-center gap-2 ${
+                audioSource === 'system' 
+                  ? 'bg-purple-600 hover:bg-purple-500 border-purple-500 text-white' 
+                  : 'bg-gray-800 hover:bg-gray-700 border-gray-600 text-gray-300'
+              }`}
+            >
+             {!isMounted ? '...' : (audioSource === 'mic' ? '🎙️ 麦克风' : '💻 系统内录')}
+             <span className="text-[10px] ml-1 opacity-80">▼</span>
+            </button>
+
+            {/* 下拉面板 */}
+            {showSourceDropdown && (
+              <div className="absolute top-full left-0 mt-2 w-40 bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden py-1">
+                <button 
+                  onClick={() => {
+                    localStorage.setItem("LecSync_AudioSource", 'mic');
+                    window.location.reload(); 
+                  }}
+                  className={`w-full text-left px-4 py-3 text-sm transition-colors ${audioSource === 'mic' ? 'bg-blue-600/20 text-blue-400 font-bold' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}`}
+                >
+                  🎙️ 麦克风
+                </button>
+                <button 
+                  onClick={() => {
+                    localStorage.setItem("LecSync_AudioSource", 'system');
+                    window.location.reload(); 
+                  }}
+                  className={`w-full text-left px-4 py-3 text-sm transition-colors ${audioSource === 'system' ? 'bg-purple-600/20 text-purple-400 font-bold' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}`}
+                >
+                  💻 系统内录
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="flex space-x-4">
@@ -467,12 +493,12 @@ const App: () => JSX.Element = () => {
         <div className="w-[120px]"></div>
       </div>
 
-      {/* Settings Panel */}
+      {/* Settings Panel - 已修复底部被遮挡问题 */}
       {showSettings && (
-        <div className="absolute top-20 left-6 z-40 bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 w-80 max-h-[80vh] overflow-y-auto flex flex-col space-y-4">
-          <h3 className="text-white font-bold text-lg border-b border-gray-700 pb-2">设置</h3>
+        <div className="absolute top-20 left-6 z-40 bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 w-80 max-h-[calc(100vh-120px)] overflow-y-auto flex flex-col space-y-4 pb-6">
+          <h3 className="text-white font-bold text-lg border-b border-gray-700 pb-2 shrink-0">外观与核心参数</h3>
 
-          <div className="space-y-4 bg-gray-900/50 p-4 rounded-lg border border-gray-700/50">
+          <div className="space-y-4 bg-gray-900/50 p-4 rounded-lg border border-gray-700/50 shrink-0">
             <h4 className="text-sm font-bold text-blue-400 mb-2">🔑 Public Edition (自带秘钥)</h4>
             <div className="flex flex-col">
               <label className="text-gray-400 text-xs mb-1">Deepgram API Key (语音识别)</label>
@@ -497,9 +523,9 @@ const App: () => JSX.Element = () => {
             <p className="text-[10px] text-gray-500 leading-tight">秘钥仅安全地存储在您本机的浏览器缓存中，不会上传至任何第三方服务器。</p>
           </div>
           
-          <div className="border-t border-gray-700 my-2"></div>
+          <div className="border-t border-gray-700 my-2 shrink-0"></div>
           
-          <div className="space-y-4">
+          <div className="space-y-4 shrink-0">
             <div className="flex flex-col">
               <label className="text-gray-300 text-sm mb-1 flex items-center">
                 全局字号大小: {fontSize}px
@@ -510,7 +536,7 @@ const App: () => JSX.Element = () => {
             <div className="flex flex-col">
               <label className="text-gray-300 text-sm mb-1 flex items-center">
                 Endpointing (停顿断句): {dgConfig.endpointing}ms
-                <span className="cursor-help text-gray-400 hover:text-white transition-colors text-xs ml-2 bg-gray-700 rounded-full w-4 h-4 flex items-center justify-center" title="检测到多长时间的语音停顿后进行一次短句切分。调小此数值（如700ms）能极大地加快字幕翻译响应速度。">❓</span>
+                <span className="cursor-help text-gray-400 hover:text-white transition-colors text-xs ml-2 bg-gray-700 rounded-full w-4 h-4 flex items-center justify-center" title="检测到多长时间的语音停顿后进行一次短句切分。调小此数值能加快字幕翻译响应速度，但可能使分句过于频繁">❓</span>
               </label>
               <input type="range" min="100" max="1500" step="50" value={dgConfig.endpointing} onChange={(e) => setDgConfig({...dgConfig, endpointing: Number(e.target.value)})} className="accent-blue-500" />
             </div>
@@ -524,9 +550,9 @@ const App: () => JSX.Element = () => {
             </div>
           </div>
 
-          <div className="border-t border-gray-700 my-2"></div>
+          <div className="border-t border-gray-700 my-2 shrink-0"></div>
 
-          <div className="space-y-3">
+          <div className="space-y-3 shrink-0">
             {[
               { key: 'smart_format', label: '智能格式化', tip: '自动将日期、时间、标点等格式化为易读排版' },
               { key: 'punctuate', label: '自动标点', tip: '根据语调自动推断并添加逗号、句号和问号' },
@@ -540,7 +566,7 @@ const App: () => JSX.Element = () => {
             ))}
           </div>
 
-          <button onClick={applyNewConfig} className="mt-4 w-full bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg font-bold transition-colors shadow-lg">
+          <button onClick={applyNewConfig} className="mt-4 shrink-0 w-full bg-green-600 hover:bg-green-500 text-white py-2.5 rounded-lg font-bold transition-colors shadow-lg">
             保存并重新连接
           </button>
         </div>
