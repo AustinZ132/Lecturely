@@ -59,16 +59,15 @@ export default function Dashboard() {
             Lecturely
           </h1>
           
-          {/* Public Edition 专属高亮徽章 */}
+          {/* Public Edition 专属高亮徽章 */} 
+          <span className="text-gray-700 font-bold mx-1 hidden md:inline-block">|</span>
           <span className="hidden md:inline-block px-3 py-1 rounded-full text-[11px] font-bold tracking-widest bg-blue-500/10 text-blue-400 border border-blue-500/30 uppercase shadow-[0_0_10px_rgba(59,130,246,0.2)]">
             Public Edition
           </span>
 
-          <span className="text-gray-700 font-bold mx-1 hidden md:inline-block">|</span>
+        
           
-          <span className="text-lg md:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400 tracking-tight">
-            资源管理器
-          </span>
+    
         </div>
 
         {/* 右侧核心按钮 */}
@@ -176,6 +175,7 @@ export default function Dashboard() {
     </div>
   );
 }
+
 
 
 
