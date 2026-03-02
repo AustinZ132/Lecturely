@@ -52,7 +52,7 @@ const MicrophoneContextProvider: React.FC<MicrophoneContextProviderProps> = ({
   );
   const [microphone, setMicrophone] = useState<MediaRecorder | null>(null);
 
-const setupMicrophone = async () => {
+  const setupMicrophone = async () => {
     setMicrophoneState(MicrophoneState.SettingUp);
 
     try {
@@ -60,10 +60,9 @@ const setupMicrophone = async () => {
       const audioSource = localStorage.getItem("LecSync_AudioSource") || 'mic';
 
       if (audioSource === 'system') {
-        // 🚀 模式 B：系统内录 (捕获当前网页或系统的声音)
         const displayStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true, // 必须请求视频，否则不弹框
-          audio: true  // 关键：请求音频
+          video: true,
+          audio: true
         });
         
         const audioTrack = displayStream.getAudioTracks()[0];
@@ -74,12 +73,10 @@ const setupMicrophone = async () => {
           return;
         }
 
-        // 提取音频轨道，立刻关闭视频轨道以节省性能
         mediaStream = new MediaStream([audioTrack]);
         displayStream.getVideoTracks().forEach(track => track.stop());
 
       } else {
-        // 🎙️ 模式 A：普通麦克风录音
         mediaStream = await navigator.mediaDevices.getUserMedia({
           audio: {
             noiseSuppression: true,
@@ -88,37 +85,47 @@ const setupMicrophone = async () => {
         });
       }
 
-      const microphone = new MediaRecorder(mediaStream);
-      setMicrophone(microphone);
+      const recorder = new MediaRecorder(mediaStream);
+      setMicrophone(recorder);
       setMicrophoneState(MicrophoneState.Ready);
     } catch (err: any) {
-      console.error(err);
-      throw err;
+      console.error("麦克风初始化失败:", err);
+      setMicrophoneState(MicrophoneState.Error);
     }
   };
 
   const stopMicrophone = useCallback(() => {
+    if (!microphone) return;
     setMicrophoneState(MicrophoneState.Pausing);
 
-    if (microphone?.state === "recording") {
+    if (microphone.state === "recording") {
       microphone.pause();
       setMicrophoneState(MicrophoneState.Paused);
     }
   }, [microphone]);
 
   const startMicrophone = useCallback(() => {
-   setMicrophoneState(MicrophoneState.Opening);
+    if (!microphone) return;
 
-    // 注意这里加了感叹号 !
-    if (microphone!.state === "paused") {
-      microphone!.resume();
-    } else if (microphone!.state === "inactive") {
-      microphone!.start(250);
+    try {
+      // 🚀 终极防御：如果已经在录音了，直接无视并退出，彻底消灭报错！
+      if (microphone.state === "recording") {
+        setMicrophoneState(MicrophoneState.Open);
+        return;
+      }
+
+      setMicrophoneState(MicrophoneState.Opening);
+
+      if (microphone.state === "paused") {
+        microphone.resume();
+      } else if (microphone.state === "inactive") {
+        microphone.start(250);
+      }
+
+      setMicrophoneState(MicrophoneState.Open);
+    } catch (error) {
+      console.warn("已安全拦截重复启动麦克风的指令:", error);
     }
-      // 只有在麦克风彻底闲置 (inactive) 的时候，才允许调用 start
-      microphone?.start(250);
-
-    setMicrophoneState(MicrophoneState.Open);
   }, [microphone]);
 
   return (
