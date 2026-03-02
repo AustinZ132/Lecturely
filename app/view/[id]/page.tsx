@@ -3,9 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { getRecords, TranscriptionRecord } from "../../../lib/storage"; 
-// 🚀 注意这里的相对路径跳了两层 (../../) 去找 app 目录下的 components
-import LecturelyIcon from "../../components/icons/LecturelyIcon";
+import { getRecords, TranscriptionRecord } from "../../../lib/storage";
 
 export default function ViewRecord() {
   const params = useParams();
@@ -36,21 +34,20 @@ export default function ViewRecord() {
     return (
       <div className="h-screen bg-gray-950 text-white flex flex-col justify-center items-center antialiased">
         <div className="animate-spin text-4xl mb-4">🎙️</div>
-        <p className="text-gray-400 font-medium tracking-widest animate-pulse">正在读取...</p>
+        <p className="text-gray-400 font-medium tracking-widest animate-pulse">正在读取记忆晶体...</p>
       </div>
     );
   }
 
   return (
-    // 强制满屏高度，隐藏外部滚动条
     <div className="h-screen bg-gray-950 text-gray-100 flex flex-col antialiased selection:bg-blue-500/30 overflow-hidden">
       
       {/* --- 统一的极客风顶部导航栏 --- */}
       <header className="w-full shrink-0 flex items-center justify-between px-6 py-4 border-b border-gray-800/80 bg-gray-900/40 backdrop-blur-md z-20 shadow-sm">
         
-        {/* 左侧：Logo + 标题区 */}
         <div className="flex items-center space-x-3 md:space-x-4 overflow-hidden">
           <h1 className="text-xl md:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2 shrink-0">
+            {/* 已经替换为你刚上传的加粗 L 图标 */}
             <img src="/icon.png" alt="Logo" className="w-6 h-6 md:w-8 md:h-8 rounded-lg" />
             <span className="hidden md:inline">Lecturely</span>
           </h1>
@@ -61,7 +58,6 @@ export default function ViewRecord() {
 
           <span className="text-gray-700 font-bold mx-1 hidden md:inline-block shrink-0">|</span>
           
-          {/* 当前记录信息 */}
           <div className="flex flex-col border-l border-gray-700/50 pl-3 md:pl-4 min-w-0">
             <span className="text-sm md:text-base font-bold text-gray-100 truncate max-w-[150px] md:max-w-xs lg:max-w-md" title={record.title}>
               {record.title}
@@ -72,7 +68,6 @@ export default function ViewRecord() {
           </div>
         </div>
 
-        {/* 右侧：操作区 */}
         <div className="flex items-center space-x-2 md:space-x-4 shrink-0">
           <Link 
             href="/" 
@@ -93,7 +88,6 @@ export default function ViewRecord() {
 
       {/* --- 中间：沉浸式阅读区 --- */}
       <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-8 pb-32 w-full max-w-4xl mx-auto space-y-5 scroll-smooth relative">
-        {/* 背景隐约的炫光特效 */}
         <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600/5 blur-[120px] rounded-full pointer-events-none z-0" />
         
         {record.content.map((item, index) => (
@@ -101,28 +95,26 @@ export default function ViewRecord() {
             key={item.id} 
             className="relative z-10 p-5 md:p-6 rounded-2xl bg-gray-800/40 backdrop-blur-sm border border-gray-700/50 hover:border-blue-500/30 transition-colors shadow-sm text-base md:text-lg group"
           >
-            {/* 段落序号指示器 */}
             <div className="absolute -left-2 -top-2 bg-gray-900 text-gray-500 text-[10px] font-mono px-2 py-0.5 rounded-md border border-gray-800 opacity-50 group-hover:opacity-100 transition-opacity">
               #{index + 1}
             </div>
             
-            <div className="mb-3 text-gray-300 leading-relaxed font-medium">
+            {/* 英文原文：缩小字号，颜色调暗 */}
+            <div className="mb-3 text-sm md:text-base text-gray-400 leading-relaxed font-medium">
               {item.original}
-            {/* 英文原文：字号变小 (text-sm md:text-base)，颜色调暗 (text-gray-400) */}
-          <div className="mb-3 text-sm md:text-base text-gray-400 leading-relaxed font-medium">
-            {item.original}
-          </div>
+            </div>
 
-          {/* 中文翻译：字号放大 (text-lg md:text-xl)，颜色变成干净清爽的高亮白 (text-gray-100)，并且加粗 (font-bold) */}
-          <div className="border-t border-gray-700/50 pt-3 text-lg md:text-xl font-bold text-gray-100 leading-relaxed tracking-wide">
-            {item.translation}
+            {/* 中文翻译：高亮白，字号放大，加粗强调 */}
+            <div className="border-t border-gray-700/50 pt-3 text-lg md:text-xl font-bold text-gray-100 leading-relaxed tracking-wide">
+              {item.translation}
+            </div>
           </div>
         ))}
       </main>
 
       {/* --- 底部：专属署名 --- */}
-      <footer className="w-full py-6 border-t border-gray-800/80 bg-gray-900/40 text-center z-20 mt-auto">
-        <p className="text-[10px] text-gray-500 font-medium tracking-wide">
+      <footer className="w-full shrink-0 py-4 border-t border-gray-800/80 bg-gray-900/40 text-center z-20">
+        <p className="text-[10px] md:text-sm text-gray-500 font-medium tracking-wide">
           Designed & Built by Gemini & Austin @ WKU · Powered by Deepgram & DeepSeek
         </p>
       </footer>
@@ -130,8 +122,3 @@ export default function ViewRecord() {
     </div>
   );
 }
-
-
-
-
-
