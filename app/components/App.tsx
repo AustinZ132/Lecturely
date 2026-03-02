@@ -180,9 +180,9 @@ const App: () => JSX.Element = () => {
       model: "nova-3",
       interim_results: true,
       smart_format: true,
-      endpointing: 250, 
-      utterance_end_ms: 1000,
-      diarize: false,
+      endpointing: 700, 
+      utterance_end_ms: 2000,
+      diarize: false, // 功能保留在状态中防止旧缓存报错，但在 UI 中移除
       punctuate: true,
       profanity_filter: false,
       dictation: false,
@@ -279,7 +279,7 @@ const App: () => JSX.Element = () => {
         signal: signal
       });
 
-     
+      
     if (!res.body) return;
       const reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
@@ -500,18 +500,28 @@ const App: () => JSX.Element = () => {
           
           <div className="space-y-4">
             <div className="flex flex-col">
-              <label className="text-gray-300 text-sm mb-1">全局字号大小: {fontSize}px</label>
+              <label className="text-gray-300 text-sm mb-1 flex items-center">
+                全局字号大小: {fontSize}px
+              </label>
               <input type="range" min="14" max="36" step="1" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} className="accent-blue-500" />
             </div>
 
             <div className="flex flex-col">
-              <label className="text-gray-300 text-sm mb-1">Endpointing (停顿断句): {dgConfig.endpointing}ms</label>
-              <input type="range" min="10" max="1000" step="10" value={dgConfig.endpointing} onChange={(e) => setDgConfig({...dgConfig, endpointing: Number(e.target.value)})} className="accent-blue-500" />
+              <label className="text-gray-300 text-sm mb-1 flex items-center">
+                Endpointing (停顿断句): {dgConfig.endpointing}ms
+                <span className="cursor-help text-gray-400 hover:text-white transition-colors text-xs ml-2 bg-gray-700 rounded-full w-4 h-4 flex items-center justify-center" title="检测到多长时间的语音停顿后进行一次短句切分，数值越小断句越频繁。">❓</span>
+              </label>
+              {/* 停顿断句：默认 700，范围 100~1500 */}
+              <input type="range" min="100" max="1500" step="50" value={dgConfig.endpointing} onChange={(e) => setDgConfig({...dgConfig, endpointing: Number(e.target.value)})} className="accent-blue-500" />
             </div>
             
             <div className="flex flex-col">
-              <label className="text-gray-300 text-sm mb-1">Utterance End (静音断句): {dgConfig.utterance_end_ms}ms</label>
-              <input type="range" min="1000" max="5000" step="500" value={dgConfig.utterance_end_ms} onChange={(e) => setDgConfig({...dgConfig, utterance_end_ms: Number(e.target.value)})} className="accent-blue-500" />
+              <label className="text-gray-300 text-sm mb-1 flex items-center">
+                Utterance End (静音断句): {dgConfig.utterance_end_ms}ms
+                <span className="cursor-help text-gray-400 hover:text-white transition-colors text-xs ml-2 bg-gray-700 rounded-full w-4 h-4 flex items-center justify-center" title="检测到长时间静音后，强制结束并归档当前一整段话。">❓</span>
+              </label>
+              {/* 静音断句：默认 2000，范围 1000~3000 */}
+              <input type="range" min="1000" max="3000" step="100" value={dgConfig.utterance_end_ms} onChange={(e) => setDgConfig({...dgConfig, utterance_end_ms: Number(e.target.value)})} className="accent-blue-500" />
             </div>
           </div>
 
@@ -519,15 +529,15 @@ const App: () => JSX.Element = () => {
 
           <div className="space-y-3">
             {[
-              { key: 'smart_format', label: '智能格式化' },
-              { key: 'punctuate', label: '自动标点' },
-              { key: 'diarize', label: '区分说话人' },
-              { key: 'dictation', label: '听写模式' },
-              { key: 'numerals', label: '数字格式化' },
+              { key: 'smart_format', label: '智能格式化', tip: '自动将日期、时间、标点等格式化为易读排版' },
+              { key: 'punctuate', label: '自动标点', tip: '根据语调自动推断并添加逗号、句号和问号' },
+              { key: 'dictation', label: '听写模式', tip: '优化语音识别引擎为严谨的纯听写记录模式' },
+              { key: 'numerals', label: '数字格式化', tip: '将发音的英文数字(two)自动转为阿拉伯数字(2)' },
             ].map((item) => (
-              <label key={item.key} className="flex items-center space-x-3 cursor-pointer">
+              <label key={item.key} className="flex items-center cursor-pointer group">
                 <input type="checkbox" checked={dgConfig[item.key as keyof typeof dgConfig] as boolean} onChange={(e) => setDgConfig({...dgConfig, [item.key]: e.target.checked})} className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500" />
-                <span className="text-gray-300 text-sm">{item.label}</span>
+                <span className="text-gray-300 text-sm ml-3">{item.label}</span>
+                <span className="cursor-help text-gray-500 group-hover:text-gray-300 transition-colors text-[10px] ml-2" title={item.tip}>❓</span>
               </label>
             ))}
           </div>
@@ -541,6 +551,7 @@ const App: () => JSX.Element = () => {
       {/* Main Transcription Display */}
       <div className="flex-col flex-auto overflow-y-auto px-8 pt-8 max-w-4xl mx-auto w-full space-y-4 pb-32 scroll-smooth">
         
+        {/* 历史记录部分：已经说完、归档的段落恢复正常大小 */}
         {history.map((item, index) => {
           const isLatest = index === history.length - 1;
           return (
@@ -551,38 +562,39 @@ const App: () => JSX.Element = () => {
                 isLatest ? 'bg-gray-800 border-l-4 border-blue-500' : 'bg-gray-800/60'
               }`}
             >
-           {/* 英文：统一调暗 (text-gray-400)，字号缩小到基准的 85% (text-[0.85em]) */}
-<div className="mb-3 text-[0.85em] text-gray-400 leading-relaxed font-medium">
-  {item.original}
-</div>
+              {/* 历史英文：稍微调暗，正常字号 */}
+              <div className="mb-2 text-gray-400 leading-relaxed font-medium">
+                {item.original}
+              </div>
 
-{/* 中文：高亮白 (text-gray-100)，字号放大到基准的 120% (text-[1.2em])，加粗并增加字间距 */}
-<div className="border-t border-gray-700/50 pt-3 text-[1.2em] font-extrabold text-gray-100 leading-relaxed tracking-wide drop-shadow-sm">
-  {item.translation === "..." ? (
-    <span className="animate-pulse text-gray-500">正在精校翻译...</span>
-  ) : (
-    item.translation
-  )}
-</div>
+              {/* 历史中文：不再放大加粗，保持正常的清爽排版 */}
+              <div className={`border-t border-gray-700/50 pt-2 font-medium leading-relaxed ${isLatest ? 'text-gray-100' : 'text-gray-400'}`}>
+                {item.translation === "..." ? (
+                  <span className="animate-pulse text-gray-500">正在精校翻译...</span>
+                ) : (
+                  item.translation
+                )}
+              </div>
             </div>
           );
         })}
 
+        {/* 实时动态部分：正在说话和翻译的区域 */}
         {(currentText || interimText) && (
           <div 
             style={{ fontSize: `${fontSize}px` }}
-            className="bg-gray-800 border-l-4 border-green-500 p-4 rounded-xl shadow-lg"
+            className="bg-gray-800 border-l-4 border-blue-400 p-5 rounded-xl shadow-lg mt-2 relative overflow-hidden"
           >
-            <div className="mb-2">
-              <span className="text-gray-300 leading-relaxed">{currentText} </span>
-              <span className="text-white font-extrabold tracking-wide" style={{ fontSize: "1.15em" }}>
-                {interimText}
-              </span>
+            {/* 正在识别的英文：稍微弱化，不抢焦点 */}
+            <div className="mb-3 text-[0.9em] text-gray-400 leading-relaxed font-medium">
+              <span>{currentText} </span>
+              <span className="text-gray-300 font-semibold">{interimText}</span>
             </div>
             
+            {/* 正在翻译的中文：绝对的视觉C位，纯白、极粗、更大（1.25em），彻底去除了绿色 */}
             {(liveTranslation || currentText) && (
-              <div className="border-t border-gray-600/50 pt-2 font-medium text-green-400/90">
-                {liveTranslation ? liveTranslation : <span className="animate-pulse text-green-400/50">...</span>}
+              <div className="border-t border-gray-600/50 pt-3 text-[1.25em] font-black text-white tracking-wide drop-shadow-md">
+                {liveTranslation ? liveTranslation : <span className="animate-pulse text-gray-500 tracking-widest text-[0.8em]">同步翻译中...</span>}
               </div>
             )}
           </div>
