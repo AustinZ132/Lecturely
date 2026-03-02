@@ -34,7 +34,12 @@ const App: () => JSX.Element = () => {
   // Abort controller to cancel outdated translation streams when a new paragraph starts
   const paragraphAbortControllerRef = useRef<AbortController | null>(null);
   const [showSettings, setShowSettings] = useState<boolean>(false);
+  
+  // --- 智能滚动相关状态与引用 ---
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [isAutoScroll, setIsAutoScroll] = useState<boolean>(true); // 控制是否跟随最新进度滚动
+  
   const [fontSize, setFontSize] = useState<number>(18);
 
   // Control panel state
@@ -101,7 +106,6 @@ const App: () => JSX.Element = () => {
 
   // Prepare saving process and open modal
   const handleEndRecordingClick = () => {
-    // Capture unflushed text before ending
     const pendingText = (currentTextRef.current + " " + interimText).trim();
 
     if (history.length === 0 && !pendingText) {
@@ -110,7 +114,6 @@ const App: () => JSX.Element = () => {
       return;
     }
 
-    // Force push pending text to history array
     if (pendingText) {
       const uniqueId = Date.now().toString() + Math.random().toString().slice(2, 6);
       
@@ -124,30 +127,25 @@ const App: () => JSX.Element = () => {
         handleTranslate(pendingText, uniqueId);
       }
       
-      // Clear buffers
       currentTextRef.current = "";
       setCurrentText("");
       setInterimText("");
       setLiveTranslation("");
     }
 
-    // Load existing folders for suggestions
     const records = getRecords();
     const folders = Array.from(new Set(records.map(r => r.folder)));
     setAvailableFolders(folders.length > 0 ? folders : ["默认分类", "专业课", "英语"]);
 
-    // Generate default title
     const defaultDate = new Date().toLocaleString('zh-CN', { hour12: false });
     setSaveTitle(`课堂笔记_${defaultDate}`);
     setSaveFolder(folders.length > 0 ? folders[0] : "默认分类");
 
-    // Pause recording automatically when modal is open
     if (!isPaused) togglePause();
     
     setIsSaveModalOpen(true);
   };
 
-  // Confirm save and write to local storage
   const confirmSave = () => {
     microphone?.stop();
     disconnectFromDeepgram();
@@ -180,9 +178,9 @@ const App: () => JSX.Element = () => {
       model: "nova-3",
       interim_results: true,
       smart_format: true,
-      endpointing: 700, 
-      utterance_end_ms: 2000,
-      diarize: false, // 功能保留在状态中防止旧缓存报错，但在 UI 中移除
+      endpointing: 700,  // 默认中间值 700
+      utterance_end_ms: 2000, // 默认中间值 2000
+      diarize: false, 
       punctuate: true,
       profanity_filter: false,
       dictation: false,
@@ -206,7 +204,6 @@ const App: () => JSX.Element = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [microphoneState]);
 
-  // Apply settings, update keys, and reload page
   const applyNewConfig = () => {
     localStorage.setItem("LecSync_Config", JSON.stringify(dgConfig));
     localStorage.setItem("LecSync_DS_Key", deepseekKey.trim());
@@ -269,17 +266,18 @@ const App: () => JSX.Element = () => {
     const signal = paragraphAbortControllerRef.current.signal;
 
     try {
+      // 通过控制请求头部和保活机制，榨干浏览器的并发潜力
       const res = await fetch('/api/translate', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${deepseekKey.trim()}`
+          'Authorization': `Bearer ${deepseekKey.trim()}`,
+          'Connection': 'keep-alive'
         },
         body: JSON.stringify({ text: chunkText }),
         signal: signal
       });
 
-      
     if (!res.body) return;
       const reader = res.body.getReader();
       const decoder = new TextDecoder("utf-8");
@@ -313,11 +311,10 @@ const App: () => JSX.Element = () => {
         }
       }
     } catch (error: any) {
-      // Ignore abort errors
+      // Ignore abort errors implicitly
     }
   };
 
-  // Deepgram and Microphone event listeners
   useEffect(() => {
     if (!microphone) return;
     if (!connection) return;
@@ -338,7 +335,6 @@ const App: () => JSX.Element = () => {
           setHistory((prev) => [...prev, { id: uniqueId, original: finalStr, translation: "..." }]);
           handleTranslate(finalStr, uniqueId); 
 
-          // Reset context for the new paragraph
           currentTextRef.current = "";
           setCurrentText("");
           setInterimText("");
@@ -364,7 +360,6 @@ const App: () => JSX.Element = () => {
       }
     };
 
-    // Ignore implicit background disconnections
     const onError = (err: any) => {
       console.warn("Deepgram background error (ignored):", err);
     };
@@ -397,18 +392,28 @@ const App: () => JSX.Element = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [microphoneState, connectionState]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [history, currentText, interimText, liveTranslation]); 
+  // --- 滚动事件监听：判断用户是否往回滑了 ---
+  const handleScroll = () => {
+    if (!scrollContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    // 如果距离底部超过 150px，说明用户在往回看，关闭自动滚动
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 150;
+    setIsAutoScroll(isAtBottom);
+  };
 
-  // Render UI
+  // --- 自动滚动逻辑：只有在 isAutoScroll 为 true 时才滚动到底部 ---
+  useEffect(() => {
+    if (isAutoScroll) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [history, currentText, interimText, liveTranslation, isAutoScroll]); 
+
   return (
-    <div className="flex flex-col h-full w-full antialiased bg-transparent relative">
+    <div className="flex flex-col h-full w-full antialiased bg-transparent relative overflow-hidden">
       
       {/* Toolbar */}
-      <div className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800/80 bg-gray-900/40 z-20 shadow-sm">
+      <div className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800/80 bg-gray-900/40 z-20 shadow-sm shrink-0">
         
-        {/* Left: Settings and Source Toggle */}
         <div className="flex space-x-3">
           <button 
             onClick={() => setShowSettings(!showSettings)}
@@ -433,7 +438,6 @@ const App: () => JSX.Element = () => {
           </button>
         </div>
 
-        {/* Center: Controls */}
         <div className="flex space-x-4">
           <button 
             onClick={togglePause}
@@ -460,17 +464,14 @@ const App: () => JSX.Element = () => {
             ⏹ 结束转录
           </button>
         </div>
-
-        {/* Right spacer */}
         <div className="w-[120px]"></div>
       </div>
 
       {/* Settings Panel */}
       {showSettings && (
-        <div className="absolute top-20 left-6 z-30 bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 w-80 max-h-[80vh] overflow-y-auto flex flex-col space-y-4">
-          <h3 className="text-white font-bold text-lg border-b border-gray-700 pb-2">外观与核心参数</h3>
+        <div className="absolute top-20 left-6 z-40 bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 w-80 max-h-[80vh] overflow-y-auto flex flex-col space-y-4">
+          <h3 className="text-white font-bold text-lg border-b border-gray-700 pb-2">设置</h3>
 
-          {/* API Keys Input */}
           <div className="space-y-4 bg-gray-900/50 p-4 rounded-lg border border-gray-700/50">
             <h4 className="text-sm font-bold text-blue-400 mb-2">🔑 Public Edition (自带秘钥)</h4>
             <div className="flex flex-col">
@@ -480,7 +481,7 @@ const App: () => JSX.Element = () => {
                 value={deepgramKey} 
                 onChange={(e) => setDeepgramKey(e.target.value)} 
                 className="bg-gray-800 border border-gray-600 text-white px-3 py-2 rounded text-sm focus:border-blue-500 outline-none" 
-                placeholder="在此输入你的 Deepgram Key..."
+                placeholder="在此输入您的 Deepgram Key..."
               />
             </div>
             <div className="flex flex-col">
@@ -490,7 +491,7 @@ const App: () => JSX.Element = () => {
                 value={deepseekKey} 
                 onChange={(e) => setDeepseekKey(e.target.value)} 
                 className="bg-gray-800 border border-gray-600 text-white px-3 py-2 rounded text-sm focus:border-blue-500 outline-none" 
-                placeholder="在此输入你的 DeepSeek Key..."
+                placeholder="在此输入您的 DeepSeek Key..."
               />
             </div>
             <p className="text-[10px] text-gray-500 leading-tight">秘钥仅安全地存储在您本机的浏览器缓存中，不会上传至任何第三方服务器。</p>
@@ -509,9 +510,8 @@ const App: () => JSX.Element = () => {
             <div className="flex flex-col">
               <label className="text-gray-300 text-sm mb-1 flex items-center">
                 Endpointing (停顿断句): {dgConfig.endpointing}ms
-                <span className="cursor-help text-gray-400 hover:text-white transition-colors text-xs ml-2 bg-gray-700 rounded-full w-4 h-4 flex items-center justify-center" title="检测到多长时间的语音停顿后进行一次短句切分，数值越小断句越频繁。">❓</span>
+                <span className="cursor-help text-gray-400 hover:text-white transition-colors text-xs ml-2 bg-gray-700 rounded-full w-4 h-4 flex items-center justify-center" title="检测到多长时间的语音停顿后进行一次短句切分。调小此数值（如700ms）能极大地加快字幕翻译响应速度。">❓</span>
               </label>
-              {/* 停顿断句：默认 700，范围 100~1500 */}
               <input type="range" min="100" max="1500" step="50" value={dgConfig.endpointing} onChange={(e) => setDgConfig({...dgConfig, endpointing: Number(e.target.value)})} className="accent-blue-500" />
             </div>
             
@@ -520,7 +520,6 @@ const App: () => JSX.Element = () => {
                 Utterance End (静音断句): {dgConfig.utterance_end_ms}ms
                 <span className="cursor-help text-gray-400 hover:text-white transition-colors text-xs ml-2 bg-gray-700 rounded-full w-4 h-4 flex items-center justify-center" title="检测到长时间静音后，强制结束并归档当前一整段话。">❓</span>
               </label>
-              {/* 静音断句：默认 2000，范围 1000~3000 */}
               <input type="range" min="1000" max="3000" step="100" value={dgConfig.utterance_end_ms} onChange={(e) => setDgConfig({...dgConfig, utterance_end_ms: Number(e.target.value)})} className="accent-blue-500" />
             </div>
           </div>
@@ -531,7 +530,6 @@ const App: () => JSX.Element = () => {
             {[
               { key: 'smart_format', label: '智能格式化', tip: '自动将日期、时间、标点等格式化为易读排版' },
               { key: 'punctuate', label: '自动标点', tip: '根据语调自动推断并添加逗号、句号和问号' },
-              { key: 'dictation', label: '听写模式', tip: '优化语音识别引擎为严谨的纯听写记录模式' },
               { key: 'numerals', label: '数字格式化', tip: '将发音的英文数字(two)自动转为阿拉伯数字(2)' },
             ].map((item) => (
               <label key={item.key} className="flex items-center cursor-pointer group">
@@ -542,16 +540,18 @@ const App: () => JSX.Element = () => {
             ))}
           </div>
 
-          <button onClick={applyNewConfig} className="mt-4 w-full bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg font-bold transition-colors">
+          <button onClick={applyNewConfig} className="mt-4 w-full bg-green-600 hover:bg-green-500 text-white py-2 rounded-lg font-bold transition-colors shadow-lg">
             保存并重新连接
           </button>
         </div>
       )}
 
-      {/* Main Transcription Display */}
-      <div className="flex-col flex-auto overflow-y-auto px-8 pt-8 max-w-4xl mx-auto w-full space-y-4 pb-32 scroll-smooth">
-        
-        {/* 历史记录部分：已经说完、归档的段落恢复正常大小 */}
+      {/* Main Transcription Display with Scroll Listener */}
+      <div 
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-col flex-auto overflow-y-auto px-8 pt-8 max-w-4xl mx-auto w-full space-y-4 pb-32 scroll-smooth relative"
+      >
         {history.map((item, index) => {
           const isLatest = index === history.length - 1;
           return (
@@ -562,12 +562,10 @@ const App: () => JSX.Element = () => {
                 isLatest ? 'bg-gray-800 border-l-4 border-blue-500' : 'bg-gray-800/60'
               }`}
             >
-              {/* 历史英文：稍微调暗，正常字号 */}
               <div className="mb-2 text-gray-400 leading-relaxed font-medium">
                 {item.original}
               </div>
 
-              {/* 历史中文：不再放大加粗，保持正常的清爽排版 */}
               <div className={`border-t border-gray-700/50 pt-2 font-medium leading-relaxed ${isLatest ? 'text-gray-100' : 'text-gray-400'}`}>
                 {item.translation === "..." ? (
                   <span className="animate-pulse text-gray-500">正在精校翻译...</span>
@@ -579,19 +577,16 @@ const App: () => JSX.Element = () => {
           );
         })}
 
-        {/* 实时动态部分：正在说话和翻译的区域 */}
         {(currentText || interimText) && (
           <div 
             style={{ fontSize: `${fontSize}px` }}
             className="bg-gray-800 border-l-4 border-blue-400 p-5 rounded-xl shadow-lg mt-2 relative overflow-hidden"
           >
-            {/* 正在识别的英文：稍微弱化，不抢焦点 */}
             <div className="mb-3 text-[0.9em] text-gray-400 leading-relaxed font-medium">
               <span>{currentText} </span>
               <span className="text-gray-300 font-semibold">{interimText}</span>
             </div>
             
-            {/* 正在翻译的中文：绝对的视觉C位，纯白、极粗、更大（1.25em），彻底去除了绿色 */}
             {(liveTranslation || currentText) && (
               <div className="border-t border-gray-600/50 pt-3 text-[1.25em] font-black text-white tracking-wide drop-shadow-md">
                 {liveTranslation ? liveTranslation : <span className="animate-pulse text-gray-500 tracking-widest text-[0.8em]">同步翻译中...</span>}
@@ -602,6 +597,19 @@ const App: () => JSX.Element = () => {
         
         <div ref={messagesEndRef} className="h-1 w-full" />
       </div>
+
+      {/* 悬浮的“回到最新”按钮 */}
+      {!isAutoScroll && (
+        <button
+          onClick={() => {
+            setIsAutoScroll(true);
+            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+          }}
+          className="absolute bottom-10 left-1/2 transform -translate-x-1/2 bg-blue-600/90 hover:bg-blue-500 text-white px-6 py-3 rounded-full shadow-[0_4px_20px_rgba(37,99,235,0.4)] backdrop-blur z-30 flex items-center gap-2 transition-all font-bold text-sm"
+        >
+          👇 回到实时位置
+        </button>
+      )}
 
       {/* Save Modal */}
       {isSaveModalOpen && (
