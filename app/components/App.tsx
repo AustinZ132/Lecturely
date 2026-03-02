@@ -36,27 +36,25 @@ const App: () => JSX.Element = () => {
   
   // UI 状态控制
   const [showSettings, setShowSettings] = useState<boolean>(false);
-  const [showSourceDropdown, setShowSourceDropdown] = useState<boolean>(false); // 控制麦克风下拉菜单
+  const [showSourceDropdown, setShowSourceDropdown] = useState<boolean>(false);
   
   // --- 智能滚动相关状态与引用 ---
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [isAutoScroll, setIsAutoScroll] = useState<boolean>(true); // 控制是否跟随最新进度滚动
+  const [isAutoScroll, setIsAutoScroll] = useState<boolean>(true);
   
   const [fontSize, setFontSize] = useState<number>(18);
 
   // Control panel state
   const [isPaused, setIsPaused] = useState(false);
+  
+  // 🚀 核心优化 1：使用 Ref 级别的“软件阀门”来控制暂停，彻底避开浏览器原生硬件暂停的 Bug
+  const isPausedRef = useRef(false);
 
-  // Toggle pause/resume recording
+  // Toggle pause/resume recording (软暂停控制)
   const togglePause = () => {
-    if (isPaused) {
-      microphone?.resume();
-      setIsPaused(false);
-    } else {
-      microphone?.pause();
-      setIsPaused(true);
-    }
+    isPausedRef.current = !isPausedRef.current;
+    setIsPaused(isPausedRef.current);
   };
  
   // Audio source selection (hydration safe)
@@ -144,7 +142,8 @@ const App: () => JSX.Element = () => {
     setSaveTitle(`课堂笔记_${defaultDate}`);
     setSaveFolder(folders.length > 0 ? folders[0] : "默认分类");
 
-    if (!isPaused) togglePause();
+    // 如果没暂停，打开保存面板时自动暂停
+    if (!isPausedRef.current) togglePause();
     
     setIsSaveModalOpen(true);
   };
@@ -169,7 +168,7 @@ const App: () => JSX.Element = () => {
     window.location.href = '/'; 
   };
 
-  // Deepgram configurations (cached in local storage)
+  // Deepgram configurations
   const [dgConfig, setDgConfig] = useState(() => {
     if (typeof window !== "undefined") {
       const savedConfig = localStorage.getItem("LecSync_Config");
@@ -215,7 +214,6 @@ const App: () => JSX.Element = () => {
     window.location.reload(); 
   };
 
-  // Translate finalized sentences
   const handleTranslate = async (textToTranslate: string, targetId: string) => {
     if (!textToTranslate.trim()) return;
     try {
@@ -259,7 +257,6 @@ const App: () => JSX.Element = () => {
     }
   };
 
-  // Translate real-time fragments (interim results)
   const handleChunkTranslate = async (chunkText: string, chunkIndex: number) => {
     if (!chunkText.trim()) return;
     
@@ -312,17 +309,19 @@ const App: () => JSX.Element = () => {
           }
         }
       }
-    } catch (error: any) {
-      // Ignore abort errors implicitly
-    }
+    } catch (error: any) {}
   };
 
   useEffect(() => {
     if (!microphone) return;
     if (!connection) return;
 
+    // 🚀 核心优化 1：数据发送阀门
+    // 当点了暂停 (isPausedRef.current 为 true) 时，直接拦截音频流，不再发送给服务器。完美解决硬件暂停死机的 Bug。
     const onData = (e: BlobEvent) => {
-      if (e.data.size > 0) connection?.send(e.data);
+      if (e.data.size > 0 && !isPausedRef.current) {
+        connection?.send(e.data);
+      }
     };
 
     const onTranscript = (data: LiveTranscriptionEvent) => {
@@ -394,16 +393,13 @@ const App: () => JSX.Element = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [microphoneState, connectionState]);
 
-  // --- 滚动事件监听：判断用户是否往回滑了 ---
   const handleScroll = () => {
     if (!scrollContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-    // 如果距离底部超过 150px，说明用户在往回看，关闭自动滚动
     const isAtBottom = scrollHeight - scrollTop - clientHeight < 150;
     setIsAutoScroll(isAtBottom);
   };
 
-  // --- 自动滚动逻辑：只有在 isAutoScroll 为 true 时才滚动到底部 ---
   useEffect(() => {
     if (isAutoScroll) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -424,7 +420,6 @@ const App: () => JSX.Element = () => {
             ⚙️ 参数设置
           </button>
 
-          {/* 下拉菜单式的输入源选择 */}
           <div className="relative">
             <button 
               onClick={() => setShowSourceDropdown(!showSourceDropdown)}
@@ -438,7 +433,6 @@ const App: () => JSX.Element = () => {
              <span className="text-[10px] ml-1 opacity-80">▼</span>
             </button>
 
-            {/* 下拉面板 */}
             {showSourceDropdown && (
               <div className="absolute top-full left-0 mt-2 w-40 bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden py-1">
                 <button 
@@ -493,7 +487,7 @@ const App: () => JSX.Element = () => {
         <div className="w-[120px]"></div>
       </div>
 
-      {/* Settings Panel - 已修复底部被遮挡问题 */}
+      {/* Settings Panel */}
       {showSettings && (
         <div className="absolute top-20 left-6 z-40 bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 w-80 max-h-[calc(100vh-120px)] overflow-y-auto flex flex-col space-y-4 pb-6">
           <h3 className="text-white font-bold text-lg border-b border-gray-700 pb-2 shrink-0">外观与核心参数</h3>
@@ -536,7 +530,7 @@ const App: () => JSX.Element = () => {
             <div className="flex flex-col">
               <label className="text-gray-300 text-sm mb-1 flex items-center">
                 Endpointing (停顿断句): {dgConfig.endpointing}ms
-                <span className="cursor-help text-gray-400 hover:text-white transition-colors text-xs ml-2 bg-gray-700 rounded-full w-4 h-4 flex items-center justify-center" title="检测到多长时间的语音停顿后进行一次短句切分。调小此数值能加快字幕翻译响应速度，但可能使分句过于频繁">❓</span>
+                <span className="cursor-help text-gray-400 hover:text-white transition-colors text-xs ml-2 bg-gray-700 rounded-full w-4 h-4 flex items-center justify-center" title="检测到多长时间的语音停顿后进行一次短句切分。调小此数值能加快字幕翻译响应速度，但可能造成分句过于频繁">❓</span>
               </label>
               <input type="range" min="100" max="1500" step="50" value={dgConfig.endpointing} onChange={(e) => setDgConfig({...dgConfig, endpointing: Number(e.target.value)})} className="accent-blue-500" />
             </div>
@@ -593,8 +587,9 @@ const App: () => JSX.Element = () => {
               </div>
 
               <div className={`border-t border-gray-700/50 pt-2 font-medium leading-relaxed ${isLatest ? 'text-gray-100' : 'text-gray-400'}`}>
+                {/* 如果有翻译内容就显示，如果没有就静静等待，不要出现花里胡哨的加载文字 */}
                 {item.translation === "..." ? (
-                  <span className="animate-pulse text-gray-500">正在精校翻译...</span>
+                  <span className="text-gray-600">...</span>
                 ) : (
                   item.translation
                 )}
@@ -613,9 +608,10 @@ const App: () => JSX.Element = () => {
               <span className="text-gray-300 font-semibold">{interimText}</span>
             </div>
             
-            {(liveTranslation || currentText) && (
+            {/* 🚀 核心优化 2：只有当 AI 吐出真正的中文翻译内容时，这个白色的纯粹方块才会渲染出来，告别烦人的占位符 */}
+            {liveTranslation && (
               <div className="border-t border-gray-600/50 pt-3 text-[1.25em] font-black text-white tracking-wide drop-shadow-md">
-                {liveTranslation ? liveTranslation : <span className="animate-pulse text-gray-500 tracking-widest text-[0.8em]">同步翻译中...</span>}
+                {liveTranslation}
               </div>
             )}
           </div>
