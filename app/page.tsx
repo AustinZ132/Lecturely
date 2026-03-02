@@ -167,13 +167,13 @@ export default function Dashboard() {
       </main>
 
       {/* 统一底部署名 (Footer) */}
-      <footer className="w-full py-6 border-t border-gray-800/80 bg-gray-900/40 text-center z-20 mt-auto">
-        <p className="text-sm text-gray-500 font-medium tracking-wide">
+        <footer className="w-full py-6 border-t border-gray-800/80 bg-gray-900/40 text-center z-20 mt-auto">
+        <p className="text-[10px] text-gray-500 font-medium tracking-wide">
           Designed & Built by Gemini & Austin @ WKU · Powered by Deepgram & DeepSeek
         </p>
       </footer>
-      
     </div>
   );
 }
+
 
