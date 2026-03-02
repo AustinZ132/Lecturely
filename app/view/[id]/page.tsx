@@ -117,8 +117,8 @@ export default function ViewRecord() {
       </main>
 
       {/* --- 底部：专属署名 --- */}
-      <footer className="w-full shrink-0 py-4 border-t border-gray-800/80 bg-gray-900/40 text-center z-20">
-        <p className="text-[8px] md:text-sm text-gray-500 font-medium tracking-wide">
+      <footer className="w-full py-6 border-t border-gray-800/80 bg-gray-900/40 text-center z-20 mt-auto">
+        <p className="text-[10px] text-gray-500 font-medium tracking-wide">
           Designed & Built by Gemini & Austin @ WKU · Powered by Deepgram & DeepSeek
         </p>
       </footer>
@@ -126,4 +126,5 @@ export default function ViewRecord() {
     </div>
   );
 }
+
 
