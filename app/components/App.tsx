@@ -637,10 +637,12 @@ const App: () => JSX.Element = () => {
         </div>
       </div>
 
-      {/* Settings Panel: z-[70] 并添加内部显式关闭按钮 */}
+      {/* 🛡️ 终极防切边设置面板：采用 Header-Body-Footer 三明治固定结构 */}
       {showSettings && (
-        <div className="absolute top-20 left-6 z-[70] bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 w-80 max-h-[calc(100vh-120px)] overflow-y-auto flex flex-col space-y-4 pb-6">
-          <div className="flex justify-between items-center border-b border-gray-700 pb-2 shrink-0">
+        <div className="absolute top-20 left-6 z-[70] bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-80 max-h-[calc(100dvh-100px)] flex flex-col overflow-hidden">
+          
+          {/* Header 区域：永远固定在面板顶部 */}
+          <div className="flex justify-between items-center border-b border-gray-700 p-5 shrink-0 bg-gray-800">
             <h3 className="text-white font-bold text-lg">外观与核心参数</h3>
             <button 
               onClick={() => setShowSettings(false)}
@@ -651,77 +653,84 @@ const App: () => JSX.Element = () => {
             </button>
           </div>
 
-          <div className="space-y-4 bg-gray-900/50 p-4 rounded-lg border border-gray-700/50 shrink-0">
-            <h4 className="text-sm font-bold text-blue-400 mb-2">🔑 Public Edition (自带秘钥)</h4>
-            <div className="flex flex-col">
-              <label className="text-gray-400 text-xs mb-1">Deepgram API Key (语音识别)</label>
-              <input 
-                type="password" 
-                value={deepgramKey} 
-                onChange={(e) => setDeepgramKey(e.target.value)} 
-                className="bg-gray-800 border border-gray-600 text-white px-3 py-2 rounded text-sm focus:border-blue-500 outline-none" 
-                placeholder="在此输入您的 Deepgram Key..."
-              />
-            </div>
-            <div className="flex flex-col">
-              <label className="text-gray-400 text-xs mb-1">DeepSeek API Key (AI 翻译)</label>
-              <input 
-                type="password" 
-                value={deepseekKey} 
-                onChange={(e) => setDeepseekKey(e.target.value)} 
-                className="bg-gray-800 border border-gray-600 text-white px-3 py-2 rounded text-sm focus:border-blue-500 outline-none" 
-                placeholder="在此输入您的 DeepSeek Key..."
-              />
-            </div>
-            <p className="text-[10px] text-gray-500 leading-tight">秘钥仅安全地存储在您本机的浏览器缓存中，不会上传至任何第三方服务器。</p>
-          </div>
-          
-          <div className="border-t border-gray-700 my-2 shrink-0"></div>
-          
-          <div className="space-y-4 shrink-0">
-            <div className="flex flex-col">
-              <label className="text-gray-300 text-sm mb-1 flex items-center">
-                全局字号大小: {fontSize}px
-              </label>
-              <input type="range" min="14" max="36" step="1" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} className="accent-blue-500" />
-            </div>
-
-            <div className="flex flex-col">
-              <label className="text-gray-300 text-sm mb-1 flex items-center">
-                Endpointing (停顿断句): {dgConfig.endpointing}ms
-                <span className="cursor-help text-gray-400 hover:text-white transition-colors text-xs ml-2 bg-gray-700 rounded-full w-4 h-4 flex items-center justify-center" title="检测到多长时间的语音停顿后进行一次短句切分。调小此数值能加快字幕翻译响应速度，但可能造成分句过于频繁">❓</span>
-              </label>
-              <input type="range" min="100" max="1500" step="50" value={dgConfig.endpointing} onChange={(e) => setDgConfig({...dgConfig, endpointing: Number(e.target.value)})} className="accent-blue-500" />
+          {/* Body 区域：专属滚动条，内部内容再多也不会把按钮挤出去 */}
+          <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar">
+            <div className="space-y-4 bg-gray-900/50 p-4 rounded-lg border border-gray-700/50">
+              <h4 className="text-sm font-bold text-blue-400 mb-2">🔑 Public Edition (自带秘钥)</h4>
+              <div className="flex flex-col">
+                <label className="text-gray-400 text-xs mb-1">Deepgram API Key (语音识别)</label>
+                <input 
+                  type="password" 
+                  value={deepgramKey} 
+                  onChange={(e) => setDeepgramKey(e.target.value)} 
+                  className="bg-gray-800 border border-gray-600 text-white px-3 py-2 rounded text-sm focus:border-blue-500 outline-none" 
+                  placeholder="在此输入您的 Deepgram Key..."
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="text-gray-400 text-xs mb-1">DeepSeek API Key (AI 翻译)</label>
+                <input 
+                  type="password" 
+                  value={deepseekKey} 
+                  onChange={(e) => setDeepseekKey(e.target.value)} 
+                  className="bg-gray-800 border border-gray-600 text-white px-3 py-2 rounded text-sm focus:border-blue-500 outline-none" 
+                  placeholder="在此输入您的 DeepSeek Key..."
+                />
+              </div>
+              <p className="text-[10px] text-gray-500 leading-tight">秘钥仅安全地存储在您本机的浏览器缓存中，不会上传至任何第三方服务器。</p>
             </div>
             
-            <div className="flex flex-col">
-              <label className="text-gray-300 text-sm mb-1 flex items-center">
-                Utterance End (静音断句): {dgConfig.utterance_end_ms}ms
-                <span className="cursor-help text-gray-400 hover:text-white transition-colors text-xs ml-2 bg-gray-700 rounded-full w-4 h-4 flex items-center justify-center" title="检测到长时间静音后，强制结束并归档当前一整段话。">❓</span>
-              </label>
-              <input type="range" min="1000" max="3000" step="100" value={dgConfig.utterance_end_ms} onChange={(e) => setDgConfig({...dgConfig, utterance_end_ms: Number(e.target.value)})} className="accent-blue-500" />
+            <div className="border-t border-gray-700 my-2"></div>
+            
+            <div className="space-y-4">
+              <div className="flex flex-col">
+                <label className="text-gray-300 text-sm mb-1 flex items-center">
+                  全局字号大小: {fontSize}px
+                </label>
+                <input type="range" min="14" max="36" step="1" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} className="accent-blue-500" />
+              </div>
+
+              <div className="flex flex-col">
+                <label className="text-gray-300 text-sm mb-1 flex items-center">
+                  Endpointing (停顿断句): {dgConfig.endpointing}ms
+                  <span className="cursor-help text-gray-400 hover:text-white transition-colors text-xs ml-2 bg-gray-700 rounded-full w-4 h-4 flex items-center justify-center" title="检测到多长时间的语音停顿后进行一次短句切分。调小此数值能加快字幕翻译响应速度，但可能造成分句过于频繁">❓</span>
+                </label>
+                <input type="range" min="100" max="1500" step="50" value={dgConfig.endpointing} onChange={(e) => setDgConfig({...dgConfig, endpointing: Number(e.target.value)})} className="accent-blue-500" />
+              </div>
+              
+              <div className="flex flex-col">
+                <label className="text-gray-300 text-sm mb-1 flex items-center">
+                  Utterance End (静音断句): {dgConfig.utterance_end_ms}ms
+                  <span className="cursor-help text-gray-400 hover:text-white transition-colors text-xs ml-2 bg-gray-700 rounded-full w-4 h-4 flex items-center justify-center" title="检测到长时间静音后，强制结束并归档当前一整段话。">❓</span>
+                </label>
+                <input type="range" min="1000" max="3000" step="100" value={dgConfig.utterance_end_ms} onChange={(e) => setDgConfig({...dgConfig, utterance_end_ms: Number(e.target.value)})} className="accent-blue-500" />
+              </div>
+            </div>
+
+            <div className="border-t border-gray-700 my-2"></div>
+
+            <div className="space-y-3">
+              {[
+                { key: 'smart_format', label: '智能格式化', tip: '自动将日期、时间、标点等格式化为易读排版' },
+                { key: 'punctuate', label: '自动标点', tip: '根据语调自动推断并添加逗号、句号和问号' },
+                { key: 'numerals', label: '数字格式化', tip: '将发音的英文数字(two)自动转为阿拉伯数字(2)' },
+              ].map((item) => (
+                <label key={item.key} className="flex items-center cursor-pointer group">
+                  <input type="checkbox" checked={dgConfig[item.key as keyof typeof dgConfig] as boolean} onChange={(e) => setDgConfig({...dgConfig, [item.key]: e.target.checked})} className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500" />
+                  <span className="text-gray-300 text-sm ml-3">{item.label}</span>
+                  <span className="cursor-help text-gray-500 group-hover:text-gray-300 transition-colors text-[10px] ml-2" title={item.tip}>❓</span>
+                </label>
+              ))}
             </div>
           </div>
 
-          <div className="border-t border-gray-700 my-2 shrink-0"></div>
-
-          <div className="space-y-3 shrink-0">
-            {[
-              { key: 'smart_format', label: '智能格式化', tip: '自动将日期、时间、标点等格式化为易读排版' },
-              { key: 'punctuate', label: '自动标点', tip: '根据语调自动推断并添加逗号、句号和问号' },
-              { key: 'numerals', label: '数字格式化', tip: '将发音的英文数字(two)自动转为阿拉伯数字(2)' },
-            ].map((item) => (
-              <label key={item.key} className="flex items-center cursor-pointer group">
-                <input type="checkbox" checked={dgConfig[item.key as keyof typeof dgConfig] as boolean} onChange={(e) => setDgConfig({...dgConfig, [item.key]: e.target.checked})} className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500" />
-                <span className="text-gray-300 text-sm ml-3">{item.label}</span>
-                <span className="cursor-help text-gray-500 group-hover:text-gray-300 transition-colors text-[10px] ml-2" title={item.tip}>❓</span>
-              </label>
-            ))}
+          {/* Footer 区域：保存按钮永远钉在面板最下方 */}
+          <div className="p-5 border-t border-gray-700 shrink-0 bg-gray-800">
+            <button onClick={applyNewConfig} className="w-full bg-green-600 hover:bg-green-500 text-white py-2.5 rounded-lg font-bold transition-colors shadow-lg">
+              保存并重新连接
+            </button>
           </div>
 
-          <button onClick={applyNewConfig} className="mt-4 shrink-0 w-full bg-green-600 hover:bg-green-500 text-white py-2.5 rounded-lg font-bold transition-colors shadow-lg">
-            保存并重新连接
-          </button>
         </div>
       )}
 
