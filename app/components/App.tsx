@@ -521,10 +521,10 @@ const App: () => JSX.Element = () => {
     // 使用 h-[100dvh] 完美适配 iPad 底部安全区，修复保存按钮被挡住的问题
     <div ref={mainContainerRef} className="flex flex-col h-[100dvh] w-full antialiased bg-transparent relative overflow-hidden">
       
-      {/* 🚀 防干扰遮罩层：设为 fixed 绝对顶层 z-[90] */}
+      {/* 🚀 防干扰遮罩层：彻底去掉暗色背景和模糊效果，变成一个全透明的“隐形玻璃板”用来捕捉点击关闭事件 */}
       {(showSettings || showSourceDropdown) && (
         <div 
-          className="fixed inset-0 z-[90] bg-black/30 backdrop-blur-sm" 
+          className="fixed inset-0 z-[90]" 
           onClick={() => {
             setShowSettings(false);
             setShowSourceDropdown(false);
@@ -637,9 +637,9 @@ const App: () => JSX.Element = () => {
         </div>
       </div>
 
-      {/* 🛡️ 终极防裁切设置面板：改为 fixed 绝对顶层屏幕居中显示，彻底脱离文档流 */}
+      {/* 🛡️ 终极防裁切设置面板：取消居中，恢复靠左上角显示，保证你可以同时看到右侧/下方的转录字幕 */}
       {showSettings && (
-        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[100] bg-gray-800 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-gray-700 w-[90%] max-w-[340px] max-h-[85dvh] flex flex-col overflow-hidden">
+        <div className="fixed top-20 left-6 z-[100] bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-80 max-h-[calc(100dvh-100px)] flex flex-col overflow-hidden">
           
           {/* Header 区域：永远固定在面板顶部 */}
           <div className="flex justify-between items-center border-b border-gray-700 p-5 shrink-0 bg-gray-800">
@@ -799,7 +799,7 @@ const App: () => JSX.Element = () => {
         </button>
       )}
 
-      {/* Save Modal: 改为 fixed 绝对顶层 z-[100] */}
+      {/* Save Modal: 依然保持 fixed 全屏覆盖 */}
       {isSaveModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
           <div className="bg-gray-800 border border-gray-700 p-8 rounded-2xl shadow-2xl w-full max-w-md transform transition-all">
