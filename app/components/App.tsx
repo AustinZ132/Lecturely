@@ -521,10 +521,10 @@ const App: () => JSX.Element = () => {
     // 使用 h-[100dvh] 完美适配 iPad 底部安全区，修复保存按钮被挡住的问题
     <div ref={mainContainerRef} className="flex flex-col h-[100dvh] w-full antialiased bg-transparent relative overflow-hidden">
       
-      {/* 🚀 防干扰遮罩层：保留，点击可关闭 */}
+      {/* 🚀 防干扰遮罩层：设为 fixed 绝对顶层 z-[90] */}
       {(showSettings || showSourceDropdown) && (
         <div 
-          className="fixed inset-0 z-40 bg-black/10" 
+          className="fixed inset-0 z-[90] bg-black/30 backdrop-blur-sm" 
           onClick={() => {
             setShowSettings(false);
             setShowSourceDropdown(false);
@@ -532,13 +532,13 @@ const App: () => JSX.Element = () => {
         />
       )}
 
-      {/* Toolbar: z-[60] 提升到比任何东西都高的绝对顶层 */}
+      {/* Toolbar: z-[60] 正常工具栏层级 */}
       <div className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800/80 bg-gray-900/40 z-[60] shadow-sm shrink-0 relative">
         
         <div className="flex items-center space-x-3">
           <button 
             onClick={() => setShowSettings(!showSettings)}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors shadow-sm border ${
+            className={`px-4 py-2 rounded-lg font-medium transition-colors shadow-sm border relative z-[100] ${
               showSettings 
                 ? 'bg-gray-700 border-gray-500 text-white' 
                 : 'bg-gray-800 hover:bg-gray-700 border-gray-600 text-gray-300'
@@ -550,7 +550,7 @@ const App: () => JSX.Element = () => {
           <div className="relative">
             <button 
               onClick={() => setShowSourceDropdown(!showSourceDropdown)}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors shadow-sm border flex items-center gap-2 relative z-50 ${
+              className={`px-4 py-2 rounded-lg font-medium transition-colors shadow-sm border flex items-center gap-2 relative z-[100] ${
                 audioSource === 'system' 
                   ? 'bg-purple-600 hover:bg-purple-500 border-purple-500 text-white' 
                   : 'bg-gray-800 hover:bg-gray-700 border-gray-600 text-gray-300'
@@ -561,7 +561,7 @@ const App: () => JSX.Element = () => {
             </button>
 
             {showSourceDropdown && (
-              <div className="absolute top-full left-0 mt-2 w-40 bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-[70] overflow-hidden py-1">
+              <div className="absolute top-full left-0 mt-2 w-40 bg-gray-800 border border-gray-700 rounded-xl shadow-xl z-[100] overflow-hidden py-1">
                 <button 
                   onClick={() => {
                     localStorage.setItem("LecSync_AudioSource", 'mic');
@@ -637,9 +637,9 @@ const App: () => JSX.Element = () => {
         </div>
       </div>
 
-      {/* 🛡️ 终极防切边设置面板：采用 Header-Body-Footer 三明治固定结构 */}
+      {/* 🛡️ 终极防裁切设置面板：改为 fixed 绝对顶层屏幕居中显示，彻底脱离文档流 */}
       {showSettings && (
-        <div className="absolute top-20 left-6 z-[70] bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-80 max-h-[calc(100dvh-100px)] flex flex-col overflow-hidden">
+        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[100] bg-gray-800 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-gray-700 w-[90%] max-w-[340px] max-h-[85dvh] flex flex-col overflow-hidden">
           
           {/* Header 区域：永远固定在面板顶部 */}
           <div className="flex justify-between items-center border-b border-gray-700 p-5 shrink-0 bg-gray-800">
@@ -653,7 +653,7 @@ const App: () => JSX.Element = () => {
             </button>
           </div>
 
-          {/* Body 区域：专属滚动条，内部内容再多也不会把按钮挤出去 */}
+          {/* Body 区域：专属滚动条 */}
           <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar">
             <div className="space-y-4 bg-gray-900/50 p-4 rounded-lg border border-gray-700/50">
               <h4 className="text-sm font-bold text-blue-400 mb-2">🔑 Public Edition (自带秘钥)</h4>
@@ -799,9 +799,9 @@ const App: () => JSX.Element = () => {
         </button>
       )}
 
-      {/* Save Modal: z-[80] 确保覆盖整个屏幕包括设置面板 */}
+      {/* Save Modal: 改为 fixed 绝对顶层 z-[100] */}
       {isSaveModalOpen && (
-        <div className="absolute inset-0 z-[80] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
           <div className="bg-gray-800 border border-gray-700 p-8 rounded-2xl shadow-2xl w-full max-w-md transform transition-all">
             <h2 className="text-2xl font-bold text-white mb-6">💾 保存课堂档案</h2>
 
