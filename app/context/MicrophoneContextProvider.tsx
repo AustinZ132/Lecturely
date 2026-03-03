@@ -5,6 +5,8 @@ import {
   useCallback,
   useContext,
   useState,
+  useRef,      // 🚀 新增引入
+  useEffect,   // 🚀 新增引入
   ReactNode,
 } from "react";
 
@@ -52,6 +54,17 @@ const MicrophoneContextProvider: React.FC<MicrophoneContextProviderProps> = ({
   );
   const [microphone, setMicrophone] = useState<MediaRecorder | null>(null);
 
+  // 🐶 核心修复 3：静默看门狗的状态记录器
+  const lastDataTimeRef = useRef<number>(Date.now());
+  const watchdogIntervalRef = useRef<any>(null);
+
+  // 组件卸载时清理看门狗
+  useEffect(() => {
+    return () => {
+      if (watchdogIntervalRef.current) clearInterval(watchdogIntervalRef.current);
+    };
+  }, []);
+
   const setupMicrophone = async () => {
     setMicrophoneState(MicrophoneState.SettingUp);
 
@@ -86,6 +99,14 @@ const MicrophoneContextProvider: React.FC<MicrophoneContextProviderProps> = ({
       }
 
       const recorder = new MediaRecorder(mediaStream);
+      
+      // 🐶 看门狗嗅探器：每次麦克风吐出有效数据，刷新最后存活时间
+      recorder.addEventListener("dataavailable", (e) => {
+        if (e.data.size > 0) {
+          lastDataTimeRef.current = Date.now();
+        }
+      });
+
       setMicrophone(recorder);
       setMicrophoneState(MicrophoneState.Ready);
     } catch (err: any) {
@@ -97,6 +118,12 @@ const MicrophoneContextProvider: React.FC<MicrophoneContextProviderProps> = ({
   const stopMicrophone = useCallback(() => {
     if (!microphone) return;
     setMicrophoneState(MicrophoneState.Pausing);
+
+    // 🛑 停止看门狗
+    if (watchdogIntervalRef.current) {
+      clearInterval(watchdogIntervalRef.current);
+      watchdogIntervalRef.current = null;
+    }
 
     if (microphone.state === "recording") {
       microphone.pause();
@@ -123,6 +150,32 @@ const MicrophoneContextProvider: React.FC<MicrophoneContextProviderProps> = ({
       }
 
       setMicrophoneState(MicrophoneState.Open);
+
+      // 🐶 启动看门狗：防止浏览器因“环境过静”而掐断底层音频流
+      lastDataTimeRef.current = Date.now();
+      if (watchdogIntervalRef.current) clearInterval(watchdogIntervalRef.current);
+      
+      watchdogIntervalRef.current = setInterval(() => {
+        if (microphone.state === "recording") {
+          // 如果超过 2.5 秒连最基本的环境底噪数据都没收到，说明浏览器休眠了音频管道
+          if (Date.now() - lastDataTimeRef.current > 2500) {
+            console.warn("⚠️ 麦克风底层音频流疑似卡死，正在后台静默唤醒...");
+            try {
+              // 自动模拟你的手动操作：静默暂停再瞬间恢复，一脚踢醒麦克风引擎
+              microphone.pause();
+              setTimeout(() => {
+                if (microphone.state === "paused") {
+                  microphone.resume();
+                  lastDataTimeRef.current = Date.now(); // 重置时间，防止死循环
+                }
+              }, 50);
+            } catch (e) {
+              console.error("静默唤醒失败:", e);
+            }
+          }
+        }
+      }, 1000); // 每秒巡逻一次
+
     } catch (error) {
       console.warn("已安全拦截重复启动麦克风的指令:", error);
     }
