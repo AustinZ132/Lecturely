@@ -20,7 +20,6 @@ interface HistoryItem {
 }
 
 const App: () => JSX.Element = () => {
-  // Basic state management
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [currentText, setCurrentText] = useState<string>(""); 
   const [interimText, setInterimText] = useState<string>(""); 
@@ -28,40 +27,29 @@ const App: () => JSX.Element = () => {
   
   const [liveTranslation, setLiveTranslation] = useState<string>("");
   
-  // Translation fragments buffer to prevent UI flickering
   const liveChunksRef = useRef<string[]>([]);
-  
-  // Abort controller to cancel outdated translation streams when a new paragraph starts
   const paragraphAbortControllerRef = useRef<AbortController | null>(null);
   
-  // UI 状态控制
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [showSourceDropdown, setShowSourceDropdown] = useState<boolean>(false);
   
-  // --- 智能滚动相关状态与引用 ---
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isAutoScroll, setIsAutoScroll] = useState<boolean>(true);
   
   const [fontSize, setFontSize] = useState<number>(18);
-
-  // Control panel state
   const [isPaused, setIsPaused] = useState(false);
   
-  // 🚀 核心优化 1：使用 Ref 级别的“软件阀门”来控制暂停，彻底避开浏览器原生硬件暂停的 Bug
   const isPausedRef = useRef(false);
 
-  // Toggle pause/resume recording (软暂停控制)
   const togglePause = () => {
     isPausedRef.current = !isPausedRef.current;
     setIsPaused(isPausedRef.current);
   };
  
-  // Audio source selection (hydration safe)
   const [isMounted, setIsMounted] = useState(false);
   const [audioSource, setAudioSource] = useState<'mic' | 'system'>('mic');
 
-  // Custom API keys (BYOK)
   const [deepseekKey, setDeepseekKey] = useState(() => {
     if (typeof window !== "undefined") return localStorage.getItem("LecSync_DS_Key") || "";
     return "";
@@ -71,10 +59,7 @@ const App: () => JSX.Element = () => {
     return "";
   });
 
-  // 📶 新增：网络延迟测速状态
   const [pingMs, setPingMs] = useState<number | null>(null);
-  
-  // 🖥️ 新增：画中画（悬浮窗）状态引用
   const pipWindowRef = useRef<any>(null);
   const mainContainerRef = useRef<HTMLDivElement>(null);
   const [isPipActive, setIsPipActive] = useState(false);
@@ -86,23 +71,21 @@ const App: () => JSX.Element = () => {
       setAudioSource(savedSource);
     }
 
-    // 📶 新增：每隔 5 秒测一次到服务器的真实延迟
     const checkPing = async () => {
       try {
         const start = Date.now();
         await fetch('/api/ping', { cache: 'no-store' });
         setPingMs(Date.now() - start);
       } catch (e) {
-        setPingMs(-1); // 代表断网或请求失败
+        setPingMs(-1); 
       }
     };
     
-    checkPing(); // 初始化测一次
+    checkPing(); 
     const pingInterval = setInterval(checkPing, 5000);
     return () => clearInterval(pingInterval);
   }, []);
 
-  // 📶 新增：根据毫秒数计算信号颜色和提示
   const getPingStatus = () => {
     if (pingMs === null) return { color: "text-gray-500", text: "测速中...", bars: "⚪⚪⚪⚪" };
     if (pingMs === -1) return { color: "text-red-500 font-bold animate-pulse", text: "连接断开", bars: "❌❌❌❌" };
@@ -114,7 +97,6 @@ const App: () => JSX.Element = () => {
 
   const pingStatus = getPingStatus();
 
-  // Export transcription history to TXT
   const exportToTXT = () => {
     if (history.length === 0) {
       alert("目前还没有转录内容哦！");
@@ -134,13 +116,11 @@ const App: () => JSX.Element = () => {
     link.click();
   };
 
-  // Save modal state
   const [isSaveModalOpen, setIsSaveModalOpen] = useState(false);
   const [saveTitle, setSaveTitle] = useState("");
   const [saveFolder, setSaveFolder] = useState("");
   const [availableFolders, setAvailableFolders] = useState<string[]>([]);
 
-  // Prepare saving process and open modal
   const handleEndRecordingClick = () => {
     const pendingText = (currentTextRef.current + " " + interimText).trim();
 
@@ -177,7 +157,6 @@ const App: () => JSX.Element = () => {
     setSaveTitle(`课堂笔记_${defaultDate}`);
     setSaveFolder(folders.length > 0 ? folders[0] : "默认分类");
 
-    // 如果没暂停，打开保存面板时自动暂停
     if (!isPausedRef.current) togglePause();
     
     setIsSaveModalOpen(true);
@@ -203,7 +182,6 @@ const App: () => JSX.Element = () => {
     window.location.href = '/'; 
   };
 
-  // Deepgram configurations
   const [dgConfig, setDgConfig] = useState(() => {
     if (typeof window !== "undefined") {
       const savedConfig = localStorage.getItem("LecSync_Config");
@@ -213,6 +191,8 @@ const App: () => JSX.Element = () => {
     }
     return {
       model: "nova-3",
+      // 🚀 核心抗干扰升级 3：强制锁定为英文模型，禁止 AI 瞎猜语言，口音纠正能力暴涨！
+      language: "en", 
       interim_results: true,
       smart_format: true,
       endpointing: 700,  
@@ -241,7 +221,6 @@ const App: () => JSX.Element = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [microphoneState]);
 
-  // 🛠️ 修复设置重新连接：平滑重连而非粗暴刷新
   const applyNewConfig = () => {
     localStorage.setItem("LecSync_Config", JSON.stringify(dgConfig));
     localStorage.setItem("LecSync_DS_Key", deepseekKey.trim());
@@ -251,7 +230,7 @@ const App: () => JSX.Element = () => {
     setTimeout(() => {
       connectToDeepgram(dgConfig);
       setShowSettings(false);
-    }, 500); // 留出 500ms 缓冲，确保上一个连接完全清理后建立新连接，避免状态丢失
+    }, 500); 
   };
 
   const handleTranslate = async (textToTranslate: string, targetId: string) => {
@@ -356,7 +335,6 @@ const App: () => JSX.Element = () => {
     if (!microphone) return;
     if (!connection) return;
 
-    // 数据发送阀门
     const onData = (e: BlobEvent) => {
       if (e.data.size > 0 && !isPausedRef.current) {
         connection?.send(e.data);
@@ -423,7 +401,6 @@ const App: () => JSX.Element = () => {
   useEffect(() => {
     if (!connection) return;
     
-    // 强制保活与断线恢复监控
     if ((microphoneState !== MicrophoneState.Open || isPaused) && connectionState === LiveConnectionState.OPEN) {
       connection.keepAlive();
       keepAliveInterval.current = setInterval(() => { 
@@ -433,7 +410,6 @@ const App: () => JSX.Element = () => {
       clearInterval(keepAliveInterval.current);
     }
 
-    // 监控休眠导致的异常断连，触发自动重连机制
     if (connectionState === LiveConnectionState.CLOSED && !isSaveModalOpen) {
        console.log("Detect unexpected disconnect, attempting to reconnect...");
        setTimeout(() => connectToDeepgram(dgConfig), 2000);
@@ -443,7 +419,6 @@ const App: () => JSX.Element = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [microphoneState, connectionState, isPaused]);
 
-  // 🖥️ 核心修复：画中画 (PiP) 功能，使用原生 Document Picture-in-Picture API
   const togglePip = useCallback(async () => {
     if (!('documentPictureInPicture' in window)) {
       alert("您的浏览器不支持原生文档画中画功能，请使用最新版的 Chrome 或 Edge 浏览器。");
@@ -456,14 +431,13 @@ const App: () => JSX.Element = () => {
     }
 
     try {
-      // @ts-ignore: 最新 API，TS 可能未包含
+      // @ts-ignore
       const pipWindow = await window.documentPictureInPicture.requestWindow({
         width: 400,
         height: 600,
       });
       pipWindowRef.current = pipWindow;
       
-      // 克隆核心样式
       [...document.styleSheets].forEach((styleSheet) => {
         try {
           const cssRules = [...styleSheet.cssRules].map((rule) => rule.cssText).join('');
@@ -480,20 +454,16 @@ const App: () => JSX.Element = () => {
         }
       });
 
-      // 将滚动区域移动到 PiP 窗口
       if (scrollContainerRef.current) {
          pipWindow.document.body.appendChild(scrollContainerRef.current);
-         // 修正 PiP 窗口背景色
          pipWindow.document.body.className = "bg-gray-950 text-gray-100 flex flex-col h-full antialiased overflow-hidden";
       }
 
       setIsPipActive(true);
 
-      // 监听 PiP 窗口关闭，将 DOM 移回原处
       pipWindow.addEventListener("pagehide", () => {
         setIsPipActive(false);
         if (mainContainerRef.current && scrollContainerRef.current) {
-           // 找到 Toolbar 的下一个节点插入
            mainContainerRef.current.insertBefore(scrollContainerRef.current, mainContainerRef.current.childNodes[2]);
         }
         pipWindowRef.current = null;
@@ -518,13 +488,11 @@ const App: () => JSX.Element = () => {
   }, [history, currentText, interimText, liveTranslation, isAutoScroll]); 
 
   return (
-    // 使用 h-[100dvh] 完美适配 iPad 底部安全区，修复保存按钮被挡住的问题
     <div ref={mainContainerRef} className="flex flex-col h-[100dvh] w-full antialiased bg-transparent relative overflow-hidden">
       
-      {/* 🚀 防干扰遮罩层：彻底去掉暗色背景和模糊效果，变成一个全透明的“隐形玻璃板”用来捕捉点击关闭事件 */}
       {(showSettings || showSourceDropdown) && (
         <div 
-          className="fixed inset-0 z-[90]" 
+          className="fixed inset-0 z-40 bg-black/10" 
           onClick={() => {
             setShowSettings(false);
             setShowSourceDropdown(false);
@@ -532,7 +500,6 @@ const App: () => JSX.Element = () => {
         />
       )}
 
-      {/* Toolbar: z-[60] 正常工具栏层级 */}
       <div className="w-full flex items-center justify-between px-6 py-4 border-b border-gray-800/80 bg-gray-900/40 z-[60] shadow-sm shrink-0 relative">
         
         <div className="flex items-center space-x-3">
@@ -584,7 +551,6 @@ const App: () => JSX.Element = () => {
             )}
           </div>
 
-          {/* 🖥️ 新增：悬浮窗 (PiP) 按钮 */}
           <button
             onClick={togglePip}
             className={`px-4 py-2 rounded-lg font-medium transition-colors shadow-sm border hidden md:flex items-center gap-2 relative z-50 ${
@@ -599,7 +565,6 @@ const App: () => JSX.Element = () => {
         </div>
 
         <div className="flex items-center space-x-4 relative z-50">
-          {/* 📶 新增：信号状态显示 */}
           <div 
             className="flex items-center space-x-2 bg-gray-800/80 px-3 py-1.5 rounded-lg border border-gray-700/50 cursor-help transition-all"
             title={`当前连接延迟: ${pingMs !== null && pingMs !== -1 ? pingMs + ' ms' : '未知'}`}
@@ -637,11 +602,9 @@ const App: () => JSX.Element = () => {
         </div>
       </div>
 
-      {/* 🛡️ 终极防裁切设置面板：取消居中，恢复靠左上角显示，保证你可以同时看到右侧/下方的转录字幕 */}
       {showSettings && (
         <div className="fixed top-20 left-6 z-[100] bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-80 max-h-[calc(100dvh-100px)] flex flex-col overflow-hidden">
           
-          {/* Header 区域：永远固定在面板顶部 */}
           <div className="flex justify-between items-center border-b border-gray-700 p-5 shrink-0 bg-gray-800">
             <h3 className="text-white font-bold text-lg">外观与核心参数</h3>
             <button 
@@ -653,7 +616,6 @@ const App: () => JSX.Element = () => {
             </button>
           </div>
 
-          {/* Body 区域：专属滚动条 */}
           <div className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar">
             <div className="space-y-4 bg-gray-900/50 p-4 rounded-lg border border-gray-700/50">
               <h4 className="text-sm font-bold text-blue-400 mb-2">🔑 Public Edition (自带秘钥)</h4>
@@ -724,7 +686,6 @@ const App: () => JSX.Element = () => {
             </div>
           </div>
 
-          {/* Footer 区域：保存按钮永远钉在面板最下方 */}
           <div className="p-5 border-t border-gray-700 shrink-0 bg-gray-800">
             <button onClick={applyNewConfig} className="w-full bg-green-600 hover:bg-green-500 text-white py-2.5 rounded-lg font-bold transition-colors shadow-lg">
               保存并重新连接
@@ -734,7 +695,6 @@ const App: () => JSX.Element = () => {
         </div>
       )}
 
-      {/* Main Transcription Display with Scroll Listener: 保持默认层级 */}
       <div 
         ref={scrollContainerRef}
         onScroll={handleScroll}
@@ -786,7 +746,6 @@ const App: () => JSX.Element = () => {
         <div ref={messagesEndRef} className="h-1 w-full" />
       </div>
 
-      {/* 悬浮的“回到最新”按钮 */}
       {!isAutoScroll && (
         <button
           onClick={() => {
@@ -799,7 +758,6 @@ const App: () => JSX.Element = () => {
         </button>
       )}
 
-      {/* Save Modal: 依然保持 fixed 全屏覆盖 */}
       {isSaveModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
           <div className="bg-gray-800 border border-gray-700 p-8 rounded-2xl shadow-2xl w-full max-w-md transform transition-all">
