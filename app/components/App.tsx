@@ -1,6 +1,6 @@
 "use client";
 import { saveRecord, getRecords } from '../../lib/storage';
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import {
   LiveConnectionState,
   LiveTranscriptionEvent,
@@ -74,6 +74,11 @@ const App: () => JSX.Element = () => {
   // 📶 新增：网络延迟测速状态
   const [pingMs, setPingMs] = useState<number | null>(null);
   
+  // 🖥️ 新增：画中画（悬浮窗）状态引用
+  const pipWindowRef = useRef<any>(null);
+  const mainContainerRef = useRef<HTMLDivElement>(null);
+  const [isPipActive, setIsPipActive] = useState(false);
+
   useEffect(() => {
     setIsMounted(true);
     const savedSource = localStorage.getItem("LecSync_AudioSource") as 'mic' | 'system';
@@ -236,12 +241,17 @@ const App: () => JSX.Element = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [microphoneState]);
 
+  // 🛠️ 修复设置重新连接：平滑重连而非粗暴刷新
   const applyNewConfig = () => {
     localStorage.setItem("LecSync_Config", JSON.stringify(dgConfig));
     localStorage.setItem("LecSync_DS_Key", deepseekKey.trim());
     localStorage.setItem("LecSync_DG_Key", deepgramKey.trim());
     
-    window.location.reload(); 
+    disconnectFromDeepgram();
+    setTimeout(() => {
+      connectToDeepgram(dgConfig);
+      setShowSettings(false);
+    }, 500); // 留出 500ms 缓冲，确保上一个连接完全清理后建立新连接，避免状态丢失
   };
 
   const handleTranslate = async (textToTranslate: string, targetId: string) => {
@@ -413,20 +423,86 @@ const App: () => JSX.Element = () => {
   useEffect(() => {
     if (!connection) return;
     
-    // 如果麦克风未打开，或者处于暂停状态，但服务器连接还在，就必须激活心跳！
+    // 强制保活与断线恢复监控
     if ((microphoneState !== MicrophoneState.Open || isPaused) && connectionState === LiveConnectionState.OPEN) {
       connection.keepAlive();
-      // 设为 8 秒发送一次保活，防止被 Deepgram 踢掉
       keepAliveInterval.current = setInterval(() => { 
         connection.keepAlive(); 
       }, 8000);
     } else {
       clearInterval(keepAliveInterval.current);
     }
+
+    // 监控休眠导致的异常断连，触发自动重连机制
+    if (connectionState === LiveConnectionState.CLOSED && !isSaveModalOpen) {
+       console.log("Detect unexpected disconnect, attempting to reconnect...");
+       setTimeout(() => connectToDeepgram(dgConfig), 2000);
+    }
+
     return () => clearInterval(keepAliveInterval.current);
-    // 务必监听 isPaused，这样一暂停就会启动心跳
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [microphoneState, connectionState, isPaused]);
+
+  // 🖥️ 核心修复：画中画 (PiP) 功能，使用原生 Document Picture-in-Picture API
+  const togglePip = useCallback(async () => {
+    if (!('documentPictureInPicture' in window)) {
+      alert("您的浏览器不支持原生文档画中画功能，请使用最新版的 Chrome 或 Edge 浏览器。");
+      return;
+    }
+
+    if (isPipActive && pipWindowRef.current) {
+      pipWindowRef.current.close();
+      return;
+    }
+
+    try {
+      // @ts-ignore: 最新 API，TS 可能未包含
+      const pipWindow = await window.documentPictureInPicture.requestWindow({
+        width: 400,
+        height: 600,
+      });
+      pipWindowRef.current = pipWindow;
+      
+      // 克隆核心样式
+      [...document.styleSheets].forEach((styleSheet) => {
+        try {
+          const cssRules = [...styleSheet.cssRules].map((rule) => rule.cssText).join('');
+          const style = document.createElement('style');
+          style.textContent = cssRules;
+          pipWindow.document.head.appendChild(style);
+        } catch (e) {
+          const link = document.createElement('link');
+          link.rel = 'stylesheet';
+          link.type = styleSheet.type;
+          link.media = styleSheet.media.mediaText;
+          link.href = styleSheet.href || '';
+          pipWindow.document.head.appendChild(link);
+        }
+      });
+
+      // 将滚动区域移动到 PiP 窗口
+      if (scrollContainerRef.current) {
+         pipWindow.document.body.appendChild(scrollContainerRef.current);
+         // 修正 PiP 窗口背景色
+         pipWindow.document.body.className = "bg-gray-950 text-gray-100 flex flex-col h-full antialiased overflow-hidden";
+      }
+
+      setIsPipActive(true);
+
+      // 监听 PiP 窗口关闭，将 DOM 移回原处
+      pipWindow.addEventListener("pagehide", () => {
+        setIsPipActive(false);
+        if (mainContainerRef.current && scrollContainerRef.current) {
+           // 找到 Toolbar 的下一个节点插入
+           mainContainerRef.current.insertBefore(scrollContainerRef.current, mainContainerRef.current.childNodes[2]);
+        }
+        pipWindowRef.current = null;
+      });
+
+    } catch (error) {
+      console.error("画中画启动失败:", error);
+    }
+  }, [isPipActive]);
 
   const handleScroll = () => {
     if (!scrollContainerRef.current) return;
@@ -442,7 +518,8 @@ const App: () => JSX.Element = () => {
   }, [history, currentText, interimText, liveTranslation, isAutoScroll]); 
 
   return (
-    <div className="flex flex-col h-full w-full antialiased bg-transparent relative overflow-hidden">
+    // 使用 h-[100dvh] 完美适配 iPad 底部安全区，修复保存按钮被挡住的问题
+    <div ref={mainContainerRef} className="flex flex-col h-[100dvh] w-full antialiased bg-transparent relative overflow-hidden">
       
       {/* 🚀 防干扰遮罩层：保留，点击可关闭 */}
       {(showSettings || showSourceDropdown) && (
@@ -506,6 +583,19 @@ const App: () => JSX.Element = () => {
               </div>
             )}
           </div>
+
+          {/* 🖥️ 新增：悬浮窗 (PiP) 按钮 */}
+          <button
+            onClick={togglePip}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors shadow-sm border hidden md:flex items-center gap-2 relative z-50 ${
+              isPipActive
+                ? 'bg-blue-600 border-blue-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.4)]'
+                : 'bg-gray-800 hover:bg-gray-700 border-gray-600 text-gray-300'
+            }`}
+            title="将字幕放入独立的悬浮小窗"
+          >
+            {isPipActive ? '🗔 收回字幕' : '🗔 悬浮窗模式'}
+          </button>
         </div>
 
         <div className="flex items-center space-x-4 relative z-50">
