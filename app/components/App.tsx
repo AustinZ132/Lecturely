@@ -21,6 +21,11 @@ interface HistoryItem {
 
 const App: () => JSX.Element = () => {
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const historyRef = useRef<HistoryItem[]>([]);
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
+
   const [currentText, setCurrentText] = useState<string>(""); 
   const [interimText, setInterimText] = useState<string>(""); 
   const currentTextRef = useRef<string>(""); 
@@ -39,7 +44,6 @@ const App: () => JSX.Element = () => {
   
   const [fontSize, setFontSize] = useState<number>(18);
   const [isPaused, setIsPaused] = useState(false);
-  
   const isPausedRef = useRef(false);
 
   const togglePause = () => {
@@ -186,17 +190,18 @@ const App: () => JSX.Element = () => {
     if (typeof window !== "undefined") {
       const savedConfig = localStorage.getItem("LecSync_Config");
       if (savedConfig) {
-        return JSON.parse(savedConfig);
+        // 兼容处理：如果你之前的缓存里有 utterance_end_ms，删掉它
+        const parsed = JSON.parse(savedConfig);
+        delete parsed.utterance_end_ms;
+        return parsed;
       }
     }
     return {
       model: "nova-3",
-      // 🚀 核心抗干扰升级 3：强制锁定为英文模型，禁止 AI 瞎猜语言，口音纠正能力暴涨！
       language: "en", 
       interim_results: true,
       smart_format: true,
       endpointing: 700,  
-      utterance_end_ms: 2000, 
       diarize: false, 
       punctuate: true,
       profanity_filter: false,
@@ -235,6 +240,9 @@ const App: () => JSX.Element = () => {
 
   const handleTranslate = async (textToTranslate: string, targetId: string) => {
     if (!textToTranslate.trim()) return;
+    
+    const contextStr = historyRef.current.slice(-3).map(h => h.original).join(" ");
+    
     try {
       const res = await fetch('/api/translate', {
         method: 'POST',
@@ -242,7 +250,7 @@ const App: () => JSX.Element = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${deepseekKey.trim()}`
         },
-        body: JSON.stringify({ text: textToTranslate })
+        body: JSON.stringify({ text: textToTranslate, contextText: contextStr }) 
       });
    
       if (!res.body) return;
@@ -283,6 +291,8 @@ const App: () => JSX.Element = () => {
       paragraphAbortControllerRef.current = new AbortController();
     }
     const signal = paragraphAbortControllerRef.current.signal;
+    
+    const contextStr = historyRef.current.slice(-2).map(h => h.original).join(" ");
 
     try {
       const res = await fetch('/api/translate', {
@@ -292,7 +302,7 @@ const App: () => JSX.Element = () => {
           'Authorization': `Bearer ${deepseekKey.trim()}`,
           'Connection': 'keep-alive'
         },
-        body: JSON.stringify({ text: chunkText }),
+        body: JSON.stringify({ text: chunkText, contextText: contextStr }), 
         signal: signal
       });
 
@@ -348,6 +358,22 @@ const App: () => JSX.Element = () => {
       if (transcript !== "") {
         if (speechFinal) {
           const finalStr = (currentTextRef.current + " " + transcript).trim();
+          
+          const wordCount = finalStr.split(/\s+/).length;
+          const isSentenceEnd = /[.?!。？！]$/.test(finalStr.trim());
+
+          if (wordCount < 4 && !isSentenceEnd) {
+            console.log(`[防拦截触发] 截获碎片短句: "${finalStr}"，已取消归档并将其合并。`);
+            currentTextRef.current = finalStr + " ";
+            setCurrentText(currentTextRef.current);
+            setInterimText(""); 
+            
+            const chunkIndex = liveChunksRef.current.length;
+            liveChunksRef.current.push(""); 
+            handleChunkTranslate(transcript, chunkIndex);
+            return; 
+          }
+
           const uniqueId = Date.now().toString() + Math.random().toString().slice(2, 6);
           
           setHistory((prev) => [...prev, { id: uniqueId, original: finalStr, translation: "..." }]);
@@ -658,14 +684,6 @@ const App: () => JSX.Element = () => {
                   <span className="cursor-help text-gray-400 hover:text-white transition-colors text-xs ml-2 bg-gray-700 rounded-full w-4 h-4 flex items-center justify-center" title="检测到多长时间的语音停顿后进行一次短句切分。调小此数值能加快字幕翻译响应速度，但可能造成分句过于频繁">❓</span>
                 </label>
                 <input type="range" min="100" max="1500" step="50" value={dgConfig.endpointing} onChange={(e) => setDgConfig({...dgConfig, endpointing: Number(e.target.value)})} className="accent-blue-500" />
-              </div>
-              
-              <div className="flex flex-col">
-                <label className="text-gray-300 text-sm mb-1 flex items-center">
-                  Utterance End (静音断句): {dgConfig.utterance_end_ms}ms
-                  <span className="cursor-help text-gray-400 hover:text-white transition-colors text-xs ml-2 bg-gray-700 rounded-full w-4 h-4 flex items-center justify-center" title="检测到长时间静音后，强制结束并归档当前一整段话。">❓</span>
-                </label>
-                <input type="range" min="1000" max="3000" step="100" value={dgConfig.utterance_end_ms} onChange={(e) => setDgConfig({...dgConfig, utterance_end_ms: Number(e.target.value)})} className="accent-blue-500" />
               </div>
             </div>
 
