@@ -68,7 +68,7 @@ const MicrophoneContextProvider: React.FC<MicrophoneContextProviderProps> = ({
     setMicrophoneState(MicrophoneState.SettingUp);
 
     try {
-      let mediaStream;
+      let finalStream; // 最终要录制的流
       const audioSource = localStorage.getItem("LecSync_AudioSource") || 'mic';
 
       if (audioSource === 'system') {
@@ -85,22 +85,42 @@ const MicrophoneContextProvider: React.FC<MicrophoneContextProviderProps> = ({
           return;
         }
 
-        mediaStream = new MediaStream([audioTrack]);
+        finalStream = new MediaStream([audioTrack]);
         displayStream.getVideoTracks().forEach(track => track.stop());
 
       } else {
-        mediaStream = await navigator.mediaDevices.getUserMedia({
+        // 1. 先获取原始麦克风流（保留基础的系统增益）
+        const rawStream = await navigator.mediaDevices.getUserMedia({
           audio: {
-            // 🚀 核心抗干扰升级 1：关闭浏览器的粗暴降噪，保留带有口音的人声辅音细节！把降噪工作交给更聪明的 Deepgram。
             noiseSuppression: false, 
             echoCancellation: true,
-            // 🚀 核心抗干扰升级 2：开启 AGC (自动增益控制)！教授走远声音变小时，麦克风会自动把音量拉满！
             autoGainControl: true,   
           },
         });
+
+        // 🚀 终极杀手锏：引入 Web Audio API 强行物理放大音量
+        // 兼容 Safari 的 webkitAudioContext
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        const audioContext = new AudioContextClass();
+        const source = audioContext.createMediaStreamSource(rawStream);
+        const gainNode = audioContext.createGain();
+        
+        // 🔥 核心增益倍数：2.5 代表把输入的声音波形强行放大 2.5 倍！
+        // 如果教授声音实在太小，你可以把这里的 2.5 改成 3.0 甚至 4.0！
+        // 注意：倍数越大，环境里的空调声等底噪也会跟着变大。2.5 是一个非常强力且均衡的值。
+        gainNode.gain.value = 2.5; 
+        
+        const destination = audioContext.createMediaStreamDestination();
+        
+        // 串联起来：原始声音 -> 放大器 -> 最终输出流
+        source.connect(gainNode);
+        gainNode.connect(destination);
+
+        finalStream = destination.stream;
       }
 
-      const recorder = new MediaRecorder(mediaStream);
+      // 将经过“物理放大”处理后的最终流交给录音器
+      const recorder = new MediaRecorder(finalStream);
       
       recorder.addEventListener("dataavailable", (e) => {
         if (e.data.size > 0) {
