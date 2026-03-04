@@ -93,8 +93,8 @@ const MicrophoneContextProvider: React.FC<MicrophoneContextProviderProps> = ({
         const rawStream = await navigator.mediaDevices.getUserMedia({
           audio: {
             noiseSuppression: false, 
-            echoCancellation: true,
-            autoGainControl: true,   
+            echoCancellation: false,
+            autoGainControl: false,  
           },
         });
 
@@ -108,7 +108,7 @@ const MicrophoneContextProvider: React.FC<MicrophoneContextProviderProps> = ({
         // 🔥 核心增益倍数：2.5 代表把输入的声音波形强行放大 2.5 倍！
         // 如果教授声音实在太小，你可以把这里的 2.5 改成 3.0 甚至 4.0！
         // 注意：倍数越大，环境里的空调声等底噪也会跟着变大。2.5 是一个非常强力且均衡的值。
-        gainNode.gain.value = 18.0; 
+        gainNode.gain.value = 4.0; 
         
         const destination = audioContext.createMediaStreamDestination();
         
